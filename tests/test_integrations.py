@@ -442,7 +442,7 @@ def test_cli_imports_and_tokens(tmp_path, capsys):
 
 def test_demo_includes_the_integrations(tmp_path, capsys):
     db = str(tmp_path / "demo.db")
-    assert cli.main(["--db", db, "demo", "--lang", "es"]) == 0
+    assert cli.main(["--db", db, "demo", "--lang", "es", "--history", "0"]) == 0
     out = capsys.readouterr().out
     assert "with 9 users and 22 tickets" in out and "netscope: 3 opened" in out
     conn = sqlite3.connect(db)

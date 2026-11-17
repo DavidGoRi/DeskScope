@@ -18,7 +18,7 @@ from fastapi.templating import Jinja2Templates
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.sessions import SessionMiddleware
 
-from . import __version__, integrations, security, tickets, tokens, users
+from . import __version__, integrations, knowledge, reports, security, tickets, tokens, users
 from .api import build_api
 from .db import connect, init_db
 from .i18n import LANGUAGES, pick_language, translate
@@ -196,11 +196,18 @@ def create_app(
                 return t(
                     f"event.{field}", old=t(f"{field}.{old}.short"), new=t(f"{field}.{new}.short")
                 )
+            if field == "satisfaction":
+                return t("event.satisfaction", new=new)
             if field == "assignee":
                 return t("event.assignee", new=new) if new else t("event.unassigned", old=old)
             return t(f"event.{field}")
 
+        def num(value: float, digits: int = 1) -> str:
+            text = f"{value:.{digits}f}"
+            return text.replace(".", ",") if lang == "es" else text
+
         ctx.update(
+            num=num,
             user=user,
             lang=lang,
             other_lang="es" if lang == "en" else "en",
@@ -415,6 +422,7 @@ def create_app(
         if user.is_staff and ticket["device"]:
             device = integrations.get_device(conn, ticket["device"])
             related = tickets.device_tickets(conn, user, ticket["device"], exclude=ticket_id)
+        articles = knowledge.suggest(conn, user, ticket["title"], limit=4) if user.is_staff else []
         return render(
             request, "ticket.html", user,
             ticket=ticket,
@@ -423,6 +431,180 @@ def create_app(
             staff=users.list_staff(conn) if user.is_staff else [],
             device=device,
             related=related,
+            articles=articles,
+        )
+
+    @app.post("/tickets/{ticket_id:int}/rate", dependencies=[Depends(check_csrf)])
+    def ticket_rate(
+        request: Request,
+        ticket_id: int,
+        score: str = Form(""),
+        comment: str = Form(""),
+        user: User = Depends(require_user),
+        conn: sqlite3.Connection = Depends(get_conn),
+    ):
+        value = int(score) if score.isdigit() else 0
+        return run_action(
+            request, ticket_id,
+            lambda: tickets.rate(conn, user, ticket_id, value, comment),
+            "survey.thanks",
+        )
+
+    # ---- routes: knowledge base ------------------------------------------
+
+    def require_staff(user: User = Depends(require_user)) -> User:
+        if not user.is_staff:
+            raise NotFound("error.not_found")
+        return user
+
+    @app.get("/kb")
+    def kb_list(
+        request: Request,
+        q: str = "",
+        category: str = "",
+        user: User = Depends(require_user),
+        conn: sqlite3.Connection = Depends(get_conn),
+    ):
+        return render(
+            request, "kb.html", user,
+            items=knowledge.search(conn, user, q[:200], category or None),
+            q=q[:200], category=category,
+        )
+
+    @app.get("/kb/suggest")
+    def kb_suggest(
+        q: str = "",
+        user: User = Depends(require_user),
+        conn: sqlite3.Connection = Depends(get_conn),
+    ):
+        items = knowledge.suggest(conn, user, q[:200])
+        return JSONResponse([{"id": a["id"], "title": a["title"]} for a in items])
+
+    @app.get("/kb/{article_id:int}")
+    def kb_article(
+        request: Request,
+        article_id: int,
+        user: User = Depends(require_user),
+        conn: sqlite3.Connection = Depends(get_conn),
+    ):
+        article = knowledge.get_article(conn, user, article_id, count_view=True)
+        return render(request, "article.html", user, article=article)
+
+    def article_form(request, user, status_code=200, **ctx):
+        return render(request, "article_form.html", user, status_code=status_code, **ctx)
+
+    @app.get("/kb/new")
+    def kb_new(
+        request: Request,
+        from_ticket: int | None = None,
+        user: User = Depends(require_staff),
+        conn: sqlite3.Connection = Depends(get_conn),
+    ):
+        form = {"category": "other", "audience": "everyone", "publish": False}
+        if from_ticket:
+            form = knowledge.draft_from_ticket(conn, user, from_ticket)
+        return article_form(request, user, form=form, article_id=None)
+
+    def save_article(request, user, conn, article_id, title, body, category, audience, publish):
+        try:
+            if article_id is None:
+                source = int(request.query_params.get("from_ticket") or 0) or None
+                article_id = knowledge.create_article(
+                    conn, user, title, body, category, audience, publish == "on", source
+                )
+            else:
+                knowledge.update_article(
+                    conn, user, article_id, title, body, category, audience, publish == "on"
+                )
+        except ValidationError as exc:
+            form = {"title": title, "body": body, "category": category, "audience": audience,
+                    "publish": publish == "on"}
+            return article_form(request, user, status_code=400, form=form,
+                                article_id=article_id, error_key=exc.key,
+                                error_params=exc.params)
+        flash(request, "kb.saved")
+        return RedirectResponse(f"/kb/{article_id}", status_code=303)
+
+    @app.post("/kb/new", dependencies=[Depends(check_csrf)])
+    def kb_create(
+        request: Request,
+        title: str = Form(""),
+        body: str = Form(""),
+        category: str = Form("other"),
+        audience: str = Form("everyone"),
+        publish: str = Form(""),
+        user: User = Depends(require_staff),
+        conn: sqlite3.Connection = Depends(get_conn),
+    ):
+        return save_article(request, user, conn, None, title, body, category, audience, publish)
+
+    @app.get("/kb/{article_id:int}/edit")
+    def kb_edit(
+        request: Request,
+        article_id: int,
+        user: User = Depends(require_staff),
+        conn: sqlite3.Connection = Depends(get_conn),
+    ):
+        article = knowledge.get_article(conn, user, article_id)
+        form = dict(article, publish=article["status"] == "published")
+        return article_form(request, user, form=form, article_id=article_id)
+
+    @app.post("/kb/{article_id:int}/edit", dependencies=[Depends(check_csrf)])
+    def kb_update(
+        request: Request,
+        article_id: int,
+        title: str = Form(""),
+        body: str = Form(""),
+        category: str = Form("other"),
+        audience: str = Form("everyone"),
+        publish: str = Form(""),
+        user: User = Depends(require_staff),
+        conn: sqlite3.Connection = Depends(get_conn),
+    ):
+        return save_article(
+            request, user, conn, article_id, title, body, category, audience, publish
+        )
+
+    @app.post("/kb/{article_id:int}/delete", dependencies=[Depends(check_csrf)])
+    def kb_delete(
+        request: Request,
+        article_id: int,
+        user: User = Depends(require_staff),
+        conn: sqlite3.Connection = Depends(get_conn),
+    ):
+        knowledge.delete_article(conn, user, article_id)
+        flash(request, "kb.deleted")
+        return RedirectResponse("/kb", status_code=303)
+
+    # ---- routes: metrics -------------------------------------------------
+
+    def period(days: int) -> int:
+        return days if days in reports.PERIODS else 30
+
+    @app.get("/reports")
+    def report_page(
+        request: Request,
+        days: int = 30,
+        user: User = Depends(require_staff),
+        conn: sqlite3.Connection = Depends(get_conn),
+    ):
+        data = reports.build_report(conn, user, policy, period(days))
+        peak = max([1] + [max(d["opened"], d["resolved"]) for d in data["daily"]])
+        return render(request, "reports.html", user, r=data, peak=peak, periods=reports.PERIODS)
+
+    @app.get("/reports/export.csv")
+    def report_export(
+        days: int = 30,
+        user: User = Depends(require_staff),
+        conn: sqlite3.Connection = Depends(get_conn),
+    ):
+        days = period(days)
+        body = reports.to_csv(reports.export_rows(conn, user, policy, days))
+        stamp = datetime.now(timezone.utc).strftime("%Y%m%d")
+        return Response(
+            body.encode("utf-8"), media_type="text/csv; charset=utf-8",
+            headers={"Content-Disposition":
+                     f'attachment; filename="deskscope-tickets-{days}d-{stamp}.csv"'},
         )
 
     @app.post("/tickets/{ticket_id:int}/comment", dependencies=[Depends(check_csrf)])

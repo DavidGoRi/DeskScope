@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}{{ t('reports.title') }}{% endblock %}
+{% macro dur(seconds) %}{{ fmt_duration(seconds) if seconds is not none else '—' }}{% endmacro %}
+{% macro pct(value) %}{{ num(value) ~ ' %' if value is not none else '—' }}{% endmacro %}
+{% block content %}
+<div class="pagehead">
+  <h1>{{ t('reports.title') }}</h1>
+  <div class="actions">
+    {% for d in periods %}<a href="/reports?days={{ d }}" class="pill{% if r.days == d %} is-current{% endif %}">{{ t('reports.period', days=d) }}</a>{% endfor %}
+    <a href="/reports/export.csv?days={{ r.days }}" class="btn">{{ t('reports.export') }}</a>
+  </div>
+</div>
+<p class="muted intro">{{ t('reports.business_note') }}</p>
+
+<div class="kpis">
+  <div class="kpi"><span>{{ t('reports.opened') }}</span><b>{{ r.opened }}</b></div>
+  <div class="kpi"><span>{{ t('reports.resolved') }}</span><b>{{ r.resolved }}</b></div>
+  <div class="kpi"><span>{{ t('reports.backlog') }}</span><b>{{ r.backlog }}</b>
+    <small>{{ t('reports.backlog_note', risk=r.backlog_at_risk, breached=r.backlog_breached) }}</small></div>
+  <div class="kpi"><span>{{ t('reports.mttr') }}</span><b>{{ dur(r.mean_resolution) }}</b>
+    {% if r.median_resolution is not none %}<small>{{ t('reports.median', time=fmt_duration(r.median_resolution)) }}</small>{% endif %}</div>
+  <div class="kpi"><span>{{ t('reports.response') }}</span><b>{{ dur(r.mean_response) }}</b></div>
+  <div class="kpi"><span>{{ t('reports.sla_response') }}</span><b>{{ pct(r.sla_response) }}</b></div>
+  <div class="kpi"><span>{{ t('reports.sla_resolution') }}</span><b>{{ pct(r.sla_resolution) }}</b></div>
+  <div class="kpi"><span>{{ t('reports.csat') }}</span><b>{{ num(r.satisfaction, 2) ~ ' / 5' if r.satisfaction else '—' }}</b>
+    <small>{{ t('reports.csat_count', n=r.satisfaction_count) }}</small></div>
+</div>
+
+<section class="card">
+  <h2>{{ t('reports.daily') }}</h2>
+  {% set n = r.daily|length %}{% set w = 720 / n %}
+  <svg class="chart" viewBox="0 0 720 170" role="img" aria-label="{{ t('reports.daily') }}" preserveAspectRatio="none">
+    <line x1="0" y1="150" x2="720" y2="150" class="axis"/>
+    {% for d in r.daily %}
+      {% set x = loop.index0 * w %}
+      {% set ho = 140 * d.opened / peak %}{% set hr = 140 * d.resolved / peak %}
+      <rect class="bar-opened" x="{{ (x + w * 0.12)|round(2) }}" y="{{ (150 - ho)|round(2) }}" width="{{ (w * 0.36)|round(2) }}" height="{{ ho|round(2) }}"><title>{{ d.day }} · {{ t('reports.opened') }}: {{ d.opened }}</title></rect>
+      <rect class="bar-resolved" x="{{ (x + w * 0.52)|round(2) }}" y="{{ (150 - hr)|round(2) }}" width="{{ (w * 0.36)|round(2) }}" height="{{ hr|round(2) }}"><title>{{ d.day }} · {{ t('reports.resolved') }}: {{ d.resolved }}</title></rect>
+    {% endfor %}
+    <text x="0" y="166" class="tick">{{ r.daily[0].day }}</text>
+    <text x="720" y="166" class="tick" text-anchor="end">{{ r.daily[-1].day }}</text>
+  </svg>
+  <p class="legend"><span class="key key-opened"></span>{{ t('reports.opened') }} <span class="key key-resolved"></span>{{ t('reports.resolved') }}</p>
+</section>
+
+<div class="report-grid">
+  <section class="card">
+    <h2>{{ t('reports.by_priority') }}</h2>
+    <table class="tickets compact">
+      <thead><tr><th>{{ t('col.priority') }}</th><th>{{ t('reports.col.opened') }}</th><th>{{ t('reports.col.resolved') }}</th><th>{{ t('reports.col.mean') }}</th><th>{{ t('reports.col.sla') }}</th></tr></thead>
+      <tbody>{% for p in r.by_priority %}
+        <tr><td><span class="prio prio-{{ p.priority }}">{{ t('priority.' ~ p.priority) }}</span></td><td>{{ p.opened }}</td><td>{{ p.resolved }}</td><td>{{ dur(p.mean_resolution) }}</td><td>{{ pct(p.sla_resolution) }}</td></tr>
+      {% endfor %}</tbody>
+    </table>
+  </section>
+
+  <section class="card">
+    <h2>{{ t('reports.by_category') }}</h2>
+    <table class="tickets compact">
+      <thead><tr><th>{{ t('col.category') }}</th><th>{{ t('reports.col.opened') }}</th><th>{{ t('reports.col.resolved') }}</th><th>{{ t('reports.col.mean') }}</th></tr></thead>
+      <tbody>{% for c in r.by_category %}
+        <tr><td>{{ t('category.' ~ c.category) }}</td><td>{{ c.opened }}</td><td>{{ c.resolved }}</td><td>{{ dur(c.mean_resolution) }}</td></tr>
+      {% endfor %}</tbody>
+    </table>
+  </section>
+
+  <section class="card">
+    <h2>{{ t('reports.by_agent') }}</h2>
+    {% if r.by_agent %}
+    <table class="tickets compact">
+      <thead><tr><th>{{ t('reports.col.technician') }}</th><th>{{ t('reports.col.resolved') }}</th><th>{{ t('reports.col.mean') }}</th><th>{{ t('reports.col.sla') }}</th><th>{{ t('reports.col.csat') }}</th></tr></thead>
+      <tbody>{% for a in r.by_agent %}
+        <tr><td>{{ a.name }}</td><td>{{ a.resolved }}</td><td>{{ dur(a.mean_resolution) }}</td><td>{{ pct(a.sla_resolution) }}</td><td>{{ num(a.satisfaction) if a.satisfaction else '—' }}</td></tr>
+      {% endfor %}</tbody>
+    </table>
+    {% else %}<p class="muted">{{ t('reports.none') }}</p>{% endif %}
+  </section>
+
+  <section class="card">
+    <h2>{{ t('reports.top_devices') }}</h2>
+    {% if r.top_devices %}
+    <table class="tickets compact">
+      <thead><tr><th>{{ t('col.device') }}</th><th>{{ t('reports.col.tickets') }}</th></tr></thead>
+      <tbody>{% for name, count in r.top_devices %}
+        <tr><td><a href="/tickets?status=any&q={{ name|urlencode }}"><code>{{ name }}</code></a></td><td>{{ count }}</td></tr>
+      {% endfor %}</tbody>
+    </table>
+    {% else %}<p class="muted">{{ t('reports.none') }}</p>{% endif %}
+    <h2 class="sub">{{ t('reports.by_source') }}</h2>
+    <p>{% for source, count in r.by_source.items() %}<span class="source source-{{ source }}">{{ t('source.' ~ source) }} · {{ count }}</span> {% else %}—{% endfor %}</p>
+  </section>
+</div>
+{% endblock %}

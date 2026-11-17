@@ -6,7 +6,7 @@ DeskScope es la cuarta pieza de un pequeño kit de sistemas: [PCScope](https://g
 
 *Read in [English](README.md).*
 
-## Qué hace ya (v0.3, fases 1 a 3)
+## Qué hace ya (v0.4, fases 1 a 4)
 
 - **Tickets** con categoría, prioridad, equipo, estado y conversación.
 - **Tres roles**: el empleado abre y sigue *sus* tickets; el técnico ve y gestiona todos; el administrador además gestiona las cuentas.
@@ -61,6 +61,20 @@ Todo está disponible en `/api/v1`, con la documentación interactiva en `/api/d
 
 Así, la tarea programada de PCScope puede enviar sus resultados directamente (hay un ejemplo con `Invoke-RestMethod` en el [README en inglés](README.md#rest-api)).
 
+### Base de conocimiento y métricas
+
+- **Artículos a partir de tickets resueltos:** un clic rellena el artículo con el problema y las respuestas públicas del equipo de soporte; nunca incluye las notas internas.
+- **Autoservicio:** mientras el empleado escribe el resumen de un ticket nuevo, aparecen debajo los artículos que pueden resolverlo.
+- **Búsqueda de texto completo** con SQLite FTS5: ordena por relevancia, encuentra palabras por su inicio y no tiene en cuenta las tildes.
+- **Destinatarios:** cada artículo es para todo el mundo (autoservicio) o solo para el equipo de soporte (procedimientos internos). Los borradores solo los ven los técnicos.
+- **Encuesta de satisfacción:** el solicitante valora del 1 al 5 su ticket resuelto.
+- **Métricas de 7, 30 o 90 días:**
+  - tiempo medio y mediana de resolución, y tiempo medio de primera respuesta, en horario laboral;
+  - % en plazo y satisfacción media;
+  - un gráfico de tickets abiertos y resueltos por día;
+  - desgloses por prioridad, categoría, técnico, origen y equipo.
+- **Exportación a CSV:** en UTF-8 con BOM para que Excel muestre bien las tildes, y protegida contra la inyección de fórmulas.
+
 ### Seguridad
 
 - **Contraseñas:** PBKDF2-SHA256 con 600 000 iteraciones.
@@ -91,7 +105,7 @@ Todas las cuentas de la demo tienen la contraseña `deskscope-demo`:
 1. ✅ **Núcleo:** tickets, roles, flujo, comentarios, historial e interfaz bilingüe.
 2. ✅ **SLA (ITIL):** matriz impacto × urgencia, plazos en horario laboral con festivos y pausa mientras se espera al usuario.
 3. ✅ **Integraciones:** ficha de PCScope en el ticket, tickets que se abren y se resuelven solos desde PCScope y NetScope, altas y bajas de ADFlow, y API REST con tokens.
-4. **Base de conocimiento y métricas:** tiempo medio de resolución, % de SLA cumplido y exportación a CSV.
+4. ✅ **Base de conocimiento y métricas:** artículos, sugerencias, búsqueda, encuesta, métricas en horario laboral y exportación a CSV segura.
 5. **Publicación:** correo, Telegram, Docker, demo en vivo y v1.0.0.
 
 Licencia [MIT](LICENSE). Todos los nombres de la demo son ficticios.

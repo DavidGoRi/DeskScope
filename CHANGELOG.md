@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.4.0] - 2026-11-17
+
+Phase 4: knowledge base, satisfaction and metrics.
+
+### Added
+- Knowledge base: articles for everyone (self-service) or staff only, drafts, read counter, written from scratch or pre-filled from a solved ticket (public answers only) and linked to it.
+- Full-text search with SQLite FTS5 (BM25 ranking, prefixes, accent-insensitive), kept in sync by triggers; free text is turned into quoted terms so FTS operators cannot be injected.
+- Suggestions while typing a new ticket (`/kb/suggest`, inserted with `textContent`) and related articles on each ticket for technicians.
+- Satisfaction survey (1-5 and a comment) for the requester of a resolved ticket.
+- Metrics page for 7, 30 or 90 days: volumes, backlog at risk, mean and median time to resolve and first response in business time, SLA compliance, satisfaction, daily SVG chart and breakdowns by priority, category, technician, source and device.
+- CSV export with business durations and SLA states, UTF-8 with BOM and protected against formula injection.
+- API: `/api/v1/articles`, `/api/v1/articles/{id}`, `/api/v1/tickets/{id}/rate` and `/api/v1/reports/summary`.
+- Demo: 60 days of closed tickets (`--history`), six articles and ratings.
+
 ## [0.3.0] - 2026-11-17
 
 Phase 3: integrations and REST API.

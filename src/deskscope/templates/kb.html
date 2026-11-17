@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}{{ t('kb.title') }}{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <h1>{{ t('kb.title') }}</h1>
+  {% if user.is_staff %}<a href="/kb/new" class="btn btn-primary">{{ t('kb.new') }}</a>{% endif %}
+</div>
+<p class="muted intro">{{ t('kb.intro') }}</p>
+
+<form method="get" action="/kb" class="filters">
+  <input type="search" name="q" value="{{ q }}" placeholder="{{ t('kb.search') }}" aria-label="{{ t('kb.search') }}">
+  <select name="category" aria-label="{{ t('col.category') }}">
+    <option value="">{{ t('kb.all_categories') }}</option>
+    {% for c in CATEGORIES %}<option value="{{ c }}"{% if category == c %} selected{% endif %}>{{ t('category.' ~ c) }}</option>{% endfor %}
+  </select>
+  <button type="submit" class="btn">{{ t('tickets.filter') }}</button>
+</form>
+
+{% if items %}
+<ul class="articles">
+  {% for a in items %}
+  <li class="card article-item">
+    <a href="/kb/{{ a.id }}" class="article-title">{{ a.title }}</a>
+    <p class="meta">
+      {{ t('category.' ~ a.category) }} · {{ t('kb.views', n=a.views) }}
+      {% if user.is_staff %}
+        {% if a.status == 'draft' %}<span class="tag">{{ t('kb.status.draft') }}</span>{% endif %}
+        {% if a.audience == 'staff' %}<span class="tag">{{ t('kb.audience.staff') }}</span>{% endif %}
+      {% endif %}
+    </p>
+    {% if a.snippet %}<p class="snippet">{{ a.snippet }}</p>{% endif %}
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="empty">{{ t('kb.empty') }}</p>
+{% endif %}
+{% endblock %}

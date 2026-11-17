@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}{{ t('kb.edit') if article_id else t('kb.new') }}{% endblock %}
+{% block content %}
+<section class="card form-card">
+  <h1>{{ t('kb.edit') if article_id else t('kb.new') }}</h1>
+  {% if form.source_ticket_id %}<p class="meta"><a href="/tickets/{{ form.source_ticket_id }}">{{ t('kb.from_ticket', id=form.source_ticket_id) }}</a></p>{% endif %}
+  {% if error_key %}<div class="flash flash-error" role="alert">{{ t(error_key, **error_params) }}</div>{% endif %}
+  {% if article_id %}{% set action = '/kb/' ~ article_id ~ '/edit' %}
+  {% elif form.source_ticket_id %}{% set action = '/kb/new?from_ticket=' ~ form.source_ticket_id %}
+  {% else %}{% set action = '/kb/new' %}{% endif %}
+  <form method="post" action="{{ action }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf }}">
+    <label>{{ t('col.title') }}
+      <input name="title" value="{{ form.title or '' }}" maxlength="120" required>
+    </label>
+    <div class="row row-2">
+      <label>{{ t('col.category') }}
+        <select name="category">
+          {% for c in CATEGORIES %}<option value="{{ c }}"{% if form.category == c %} selected{% endif %}>{{ t('category.' ~ c) }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>{{ t('kb.audience') }}
+        <select name="audience">
+          {% for a in ('everyone', 'staff') %}<option value="{{ a }}"{% if form.audience == a %} selected{% endif %}>{{ t('kb.audience.' ~ a) }}</option>{% endfor %}
+        </select>
+      </label>
+    </div>
+    <label>{{ t('kb.body') }}
+      <textarea name="body" rows="16" maxlength="20000" required>{{ form.body or '' }}</textarea>
+      <small>{{ t('kb.body_hint') }}</small>
+    </label>
+    <div class="form-foot">
+      <label class="check"><input type="checkbox" name="publish"{% if form.publish %} checked{% endif %}> {{ t('kb.publish') }}</label>
+      <button type="submit" class="btn btn-primary">{{ t('kb.save') }}</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

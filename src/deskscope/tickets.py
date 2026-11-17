@@ -411,3 +411,26 @@ def device_tickets(
         (device.upper(), exclude or 0, limit),
     )
     return [dict(r) for r in rows]
+
+
+def rate(
+    conn: sqlite3.Connection, actor: User, ticket_id: int, score: int, comment: str = ""
+) -> None:
+    """Satisfaction survey: the requester rates a resolved ticket once, from 1 to 5."""
+    ticket = get_ticket(conn, actor, ticket_id)
+    if ticket["requester_id"] != actor.id:
+        raise PermissionDenied("error.forbidden")
+    if ticket["status"] not in ("resolved", "closed"):
+        raise ValidationError("error.rate_not_resolved")
+    if ticket["satisfaction"]:
+        raise ValidationError("error.already_rated")
+    if not isinstance(score, int) or not 1 <= score <= 5:
+        raise ValidationError("error.rating_invalid")
+    comment = (comment or "").strip()[:TEXT_MAX] or None
+    now = utcnow()
+    conn.execute(
+        "UPDATE tickets SET satisfaction = ?, satisfaction_comment = ? WHERE id = ?",
+        (score, comment, ticket_id),
+    )
+    _log(conn, ticket_id, actor.id, "satisfaction", None, str(score), now)
+    conn.commit()

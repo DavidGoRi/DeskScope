@@ -10,6 +10,10 @@
       <input name="title" value="{{ form.title or '' }}" maxlength="120" required>
       <small>{{ t('new.title_hint') }}</small>
     </label>
+    <div class="suggestions" data-suggest-for="title" hidden>
+      <p>{{ t('kb.suggest_title') }}</p>
+      <ul></ul>
+    </div>
     <div class="row">
       <label>{{ t('col.category') }}
         <select name="category">

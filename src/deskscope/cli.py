@@ -117,7 +117,7 @@ def _cmd_demo(args: argparse.Namespace) -> int:
     init_db(db_path)
     conn = connect(db_path)
     try:
-        seed_demo(conn, lang=args.lang)
+        seed_demo(conn, lang=args.lang, history=args.history)
         imported = seed_integrations(conn, lang=args.lang)
         count = conn.execute("SELECT COUNT(*) FROM tickets").fetchone()[0]
     finally:
@@ -254,6 +254,8 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("demo", help="create a database with a fictitious company")
     p.add_argument("--lang", choices=("en", "es"), default="en", help="language of the tickets")
     p.add_argument("--reset", action="store_true", help="replace the database if it exists")
+    p.add_argument("--history", type=int, default=60,
+                   help="older closed tickets to generate for the metrics (default 60)")
     p.set_defaults(func=_cmd_demo)
 
     p = sub.add_parser("import", help="open or resolve tickets from PCScope, NetScope or ADFlow")

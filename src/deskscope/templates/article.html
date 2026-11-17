@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}{{ article.title }}{% endblock %}
+{% block content %}
+<p><a href="/kb">← {{ t('kb.title') }}</a></p>
+<article class="card article">
+  <div class="pagehead">
+    <h1>{{ article.title }}</h1>
+    {% if user.is_staff %}
+    <div class="actions">
+      <a href="/kb/{{ article.id }}/edit" class="btn">{{ t('kb.edit') }}</a>
+      <form method="post" action="/kb/{{ article.id }}/delete" class="inline">
+        <input type="hidden" name="csrf_token" value="{{ csrf }}">
+        <button type="submit" class="btn btn-status-closed">{{ t('kb.delete') }}</button>
+      </form>
+    </div>
+    {% endif %}
+  </div>
+  <p class="meta">
+    {{ t('category.' ~ article.category) }} · {{ t('kb.updated', date=fmt_time(article.updated_at)) }} · {{ t('kb.by', name=article.author_name) }} · {{ t('kb.views', n=article.views) }}
+    {% if user.is_staff %}
+      · <span class="tag">{{ t('kb.status.' ~ article.status) }}</span>
+      <span class="tag">{{ t('kb.audience.' ~ article.audience) }}</span>
+      {% if article.source_ticket_id %}· <a href="/tickets/{{ article.source_ticket_id }}">{{ t('kb.from_ticket', id=article.source_ticket_id) }}</a>{% endif %}
+    {% endif %}
+  </p>
+  <div class="text article-body">{{ article.body }}</div>
+</article>
+{% endblock %}

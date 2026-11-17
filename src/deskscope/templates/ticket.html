@@ -137,6 +137,46 @@
     </section>
     {% endif %}
 
+    {% if ticket.status in ('resolved', 'closed') and ticket.requester_id == user.id %}
+    <section class="card survey">
+      <h2>{{ t('survey.title') }}</h2>
+      {% if ticket.satisfaction %}
+        <p><b>{{ t('survey.given', score=ticket.satisfaction) }}</b></p>
+        {% if ticket.satisfaction_comment %}<p class="text">{{ ticket.satisfaction_comment }}</p>{% endif %}
+      {% else %}
+      <form method="post" action="/tickets/{{ ticket.id }}/rate" class="stack">
+        <input type="hidden" name="csrf_token" value="{{ csrf }}">
+        <fieldset class="scores">
+          <legend>{{ t('survey.question') }}</legend>
+          {% for n in range(5, 0, -1) %}<label class="check"><input type="radio" name="score" value="{{ n }}" required> {{ t('survey.score.' ~ n) }}</label>{% endfor %}
+        </fieldset>
+        <label>{{ t('survey.comment') }}<textarea name="comment" rows="2" maxlength="5000"></textarea></label>
+        <button type="submit" class="btn btn-primary">{{ t('survey.send') }}</button>
+      </form>
+      {% endif %}
+    </section>
+    {% elif user.is_staff and ticket.satisfaction %}
+    <section class="card">
+      <h2>{{ t('reports.csat') }}</h2>
+      <p><b>{{ t('survey.given', score=ticket.satisfaction) }}</b></p>
+      {% if ticket.satisfaction_comment %}<p class="text">{{ ticket.satisfaction_comment }}</p>{% endif %}
+    </section>
+    {% endif %}
+
+    {% if user.is_staff and (articles or ticket.status in ('resolved', 'closed')) %}
+    <section class="card">
+      <h2>{{ t('kb.related') }}</h2>
+      {% if articles %}
+      <ul class="related">
+        {% for a in articles %}<li><a href="/kb/{{ a.id }}">{{ a.title }}</a></li>{% endfor %}
+      </ul>
+      {% endif %}
+      {% if ticket.status in ('resolved', 'closed') %}
+      <p><a href="/kb/new?from_ticket={{ ticket.id }}" class="btn">{{ t('kb.make_article') }}</a></p>
+      {% endif %}
+    </section>
+    {% endif %}
+
     {% if device %}{% set d = device.data %}
     <section class="card device-card">
       <h2>{{ t('device.title') }} · {{ device.name }}</h2>

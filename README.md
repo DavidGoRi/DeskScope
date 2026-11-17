@@ -20,7 +20,7 @@ The goal is the loop a real service desk lives in: *the inventory spots a proble
 
 *Leer en [español](README.es.md).*
 
-## What works today (v0.3, phases 1 to 3)
+## What works today (v0.4, phases 1 to 4)
 
 - **Tickets** with category, priority, device, status and a conversation.
 - **Three roles**: employees open and follow *their own* tickets; technicians see and work every ticket; administrators also manage accounts.
@@ -101,6 +101,27 @@ Invoke-RestMethod -Method Post -Uri 'https://deskscope.example.com/api/v1/import
 
 (`deskscope token create integrations --name "PCScope task"` prints a token for the system account.)
 
+### Knowledge base and self-service
+
+- **Articles written from solved tickets**: one click pre-fills the article with the problem and the desk's public answers (never the internal notes) and links it back to the ticket.
+- **Self-service before the ticket**: while an employee types the summary of a new ticket, matching articles appear under it, so many problems never become tickets.
+- **Full-text search** with SQLite FTS5: ranked with BM25, prefix matching and accent-insensitive (*impresion* finds *impresión*). Free text is turned into quoted terms, so nobody can inject FTS operators.
+- **Audiences and drafts**: articles for everyone (self-service) or for the service desk only (internal procedures); drafts are only visible to technicians. Each published article counts its reads.
+- Technicians see **related articles** on every ticket.
+
+### Metrics, satisfaction and export
+
+- **Satisfaction survey**: once a ticket is resolved its requester rates it from 1 to 5, with an optional comment; the rating shows on the ticket and in the history.
+- **Metrics page** for the last 7, 30 or 90 days:
+  - tickets opened, resolved and still open (with how many are at risk or breached);
+  - mean and median **time to resolve** and mean **first response**, in business time, measured by the SLA engine (pauses excluded);
+  - **% resolved on time** and **% answered on time**;
+  - **satisfaction** average;
+  - opened vs resolved per day (server-rendered SVG, no JavaScript chart library);
+  - breakdowns by priority, category, technician, source and the devices with the most tickets.
+- **CSV export** of the period's tickets with business durations and SLA states. It is UTF-8 with BOM so Excel shows accents, and every cell is protected against **CSV/formula injection** (`=`, `+`, `-`, `@`… are neutralised): ticket titles are typed by users.
+- The same numbers at `GET /api/v1/reports/summary?days=30`.
+
 ### Security, because a help desk holds sensitive data
 
 - Passwords hashed with **PBKDF2-SHA256, 600,000 rounds** (standard library, no external crypto).
@@ -120,7 +141,7 @@ python -m venv .venv
 .venv\Scripts\activate          # Linux/macOS: source .venv/bin/activate
 pip install -e .
 
-deskscope demo --lang en        # fictitious company with 14 tickets
+deskscope demo --lang en        # fictitious company: 60 days of history, articles, imports
 deskscope serve                 # http://127.0.0.1:8000
 ```
 
@@ -148,7 +169,7 @@ Copy [`sla.example.json`](sla.example.json) (Madrid business hours and Spanish n
 1. ✅ **Core**: tickets, roles, workflow, comments, audit trail, bilingual UI.
 2. ✅ **SLAs (ITIL)**: priority from an impact × urgency matrix, response and resolution targets in business hours with holidays, pause while waiting for the user, "at risk" warnings.
 3. ✅ **Integrations**: PCScope device sheet inside the ticket, self-healing tickets from PCScope issues and NetScope findings, onboarding and offboarding tickets from ADFlow, REST API with tokens.
-4. **Knowledge base and metrics**: turn a solved ticket into an article, suggest articles while typing, MTTR, SLA compliance, top categories and devices, CSV export.
+4. ✅ **Knowledge base and metrics**: articles from solved tickets, suggestions while typing, full-text search, satisfaction survey, MTTR and SLA compliance in business time, breakdowns, safe CSV export.
 5. **Release**: tickets by email (IMAP), notifications by email and Telegram, Docker image, live demo and v1.0.0.
 
 ## Development
@@ -159,7 +180,7 @@ ruff check .
 python -m pytest
 ```
 
-194 tests (domain rules, permissions, the business-hours calendar and SLA clocks, schema migrations, the three importers, tokens, the REST API, web flows, security headers, translations, demo data and CLI) run on Windows and Linux with Python 3.10 and 3.13. CI also starts the real server and calls the API with a real token.
+224 tests (domain rules, permissions, the business-hours calendar and SLA clocks, schema migrations, the three importers, tokens, the REST API, full-text search, metrics computed on a fixed calendar, CSV injection, web flows, security headers, translations, demo data and CLI) run on Windows and Linux with Python 3.10 and 3.13. CI also starts the real server and calls the API with a real token.
 
 The fictitious exports used by the demo and the tests are in [`src/deskscope/examples`](src/deskscope/examples): a PCScope CSV export (culture-specific `;` delimiter and BOM, as PowerShell writes it), a NetScope scan and an ADFlow run.
 
@@ -173,6 +194,8 @@ src/deskscope/
   integrations.py  PCScope / NetScope / ADFlow importers and reconciliation
   tokens.py     API tokens (hashed)
   api.py        REST API mounted at /api
+  knowledge.py  knowledge base and FTS5 search
+  reports.py    metrics and CSV export
   migrations/   numbered SQL schema migrations
   users.py      accounts and authentication
   security.py   password hashing, tokens

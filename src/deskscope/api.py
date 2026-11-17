@@ -19,10 +19,10 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import __version__, integrations, tickets, tokens
+from . import __version__, integrations, knowledge, reports, tickets, tokens
 from .db import connect
 from .i18n import translate
-from .models import DeskError, NotFound, PermissionDenied, User
+from .models import DeskError, NotFound, PermissionDenied, User, ValidationError
 from .sla import Clock, SlaPolicy
 
 Level = Literal["high", "medium", "low"]
@@ -53,6 +53,11 @@ class AssignIn(BaseModel):
 class ClassifyIn(BaseModel):
     impact: Level
     urgency: Level
+
+
+class RatingIn(BaseModel):
+    score: int = Field(ge=1, le=5)
+    comment: str = ""
 
 
 class PCScopeImport(BaseModel):
@@ -236,6 +241,51 @@ def build_api(db_path: Path, policy: SlaPolicy) -> FastAPI:
     ):
         tickets.set_classification(conn, user, ticket_id, body.impact, body.urgency)
         return _ticket(tickets.get_ticket(conn, user, ticket_id), False)
+
+    @api.post(f"{v1}/tickets/{{ticket_id}}/rate", tags=["tickets"])
+    def rate(
+        ticket_id: int,
+        body: RatingIn,
+        user: User = Depends(token_user),
+        conn: sqlite3.Connection = Depends(get_conn),
+    ):
+        """Satisfaction survey (requester only, once the ticket is resolved)."""
+        tickets.rate(conn, user, ticket_id, body.score, body.comment)
+        return {"ticket_id": ticket_id, "satisfaction": body.score}
+
+    @api.get(f"{v1}/articles", tags=["knowledge base"])
+    def list_articles(
+        q: str = "",
+        category: str | None = None,
+        user: User = Depends(token_user),
+        conn: sqlite3.Connection = Depends(get_conn),
+    ):
+        """Knowledge base search (published self-service articles for employees)."""
+        items = knowledge.search(conn, user, q[:200], category)
+        fields = ("id", "title", "category", "audience", "status", "views", "updated_at")
+        return {"count": len(items), "articles": [{k: a[k] for k in fields} for a in items]}
+
+    @api.get(f"{v1}/articles/{{article_id}}", tags=["knowledge base"])
+    def get_article(
+        article_id: int,
+        user: User = Depends(token_user),
+        conn: sqlite3.Connection = Depends(get_conn),
+    ):
+        article = knowledge.get_article(conn, user, article_id, count_view=True)
+        fields = ("id", "title", "body", "category", "audience", "status", "views",
+                  "author_name", "source_ticket_id", "created_at", "updated_at")
+        return {k: article[k] for k in fields}
+
+    @api.get(f"{v1}/reports/summary", tags=["metrics"])
+    def report_summary(
+        days: int = 30,
+        user: User = Depends(staff_user),
+        conn: sqlite3.Connection = Depends(get_conn),
+    ):
+        """Service desk metrics for the last 7, 30 or 90 days; durations are business seconds."""
+        if days not in reports.PERIODS:
+            raise ValidationError("error.period_invalid")
+        return reports.build_report(conn, user, policy, days)
 
     @api.get(f"{v1}/devices/{{name}}", tags=["devices"])
     def get_device(

@@ -6,6 +6,7 @@ integration in phase 3 can link both demos. Every name here is invented.
 
 from __future__ import annotations
 
+import random
 import sqlite3
 from datetime import datetime, timedelta, timezone
 from importlib import resources
@@ -13,6 +14,7 @@ from pathlib import Path
 
 from . import security
 from .models import priority_for
+from .sla import BusinessCalendar
 
 DEMO_PASSWORD = "deskscope-demo"
 
@@ -285,8 +287,13 @@ def seed_demo(
     lang: str = "en",
     now: datetime | None = None,
     password: str = DEMO_PASSWORD,
+    history: int = 0,
 ) -> dict[str, int]:
-    """Fill an empty database with the demo company. Returns the user ids."""
+    """Fill an empty database with the demo company. Returns the user ids.
+
+    ``history`` adds that many older, already closed tickets (spread over the
+    previous 60 days) so the metrics page has something to show.
+    """
     if conn.execute("SELECT COUNT(*) FROM users WHERE is_system = 0").fetchone()[0]:
         raise RuntimeError("the database is not empty; use a new file for the demo")
     lang = lang if lang in ("en", "es") else "en"
@@ -304,6 +311,9 @@ def seed_demo(
         )
         ids[username] = cur.lastrowid
     names = {u: n for u, n, _ in DEMO_USERS}
+    if history:
+        _seed_history(conn, ids, names, lang, now, history)
+    scenario_ids: dict[int, int] = {}
 
     # Oldest first, so ticket numbers grow with time like in a real desk.
     for sc in sorted(SCENARIOS, key=lambda s: -s["age"]):
@@ -318,6 +328,7 @@ def seed_demo(
              priority, ids[sc["requester"]], sc["device"], _iso(opened), _iso(opened)),
         )
         tid = cur.lastrowid
+        scenario_ids[SCENARIOS.index(sc)] = tid
         requester = ids[sc["requester"]]
         conn.execute(
             "INSERT INTO ticket_events (ticket_id, actor_id, field, new_value, created_at)"
@@ -379,8 +390,191 @@ def seed_demo(
              _iso(closed_at) if closed_at else None,
              _iso(first_response) if first_response else None, tid),
         )
+    for index, (score, comment) in RATINGS.items():
+        conn.execute(
+            "UPDATE tickets SET satisfaction = ?, satisfaction_comment = ? WHERE id = ?",
+            (score, comment[lang] if comment else None, scenario_ids[index]),
+        )
+    _seed_articles(conn, ids, scenario_ids, lang, now)
     conn.commit()
     return ids
+
+
+# ---- ratings, knowledge base and history ---------------------------------------------
+
+# Scenario index -> (score, comment) for closed scenario tickets.
+RATINGS: dict[int, tuple[int, dict[str, str] | None]] = {
+    4: (5, _t("Fixed in five minutes, thank you!", "¡Arreglado en cinco minutos, gracias!")),
+    6: (4, None),
+    13: (5, _t("Very clear explanation.", "Explicación muy clara.")),
+}
+
+# (author, category, audience, published, source scenario index or None, title, body)
+ARTICLES = [
+    ("carlos.ruiz", "network", "everyone", True, 3,
+     _t("VPN disconnects every few minutes outside the office",
+        "La VPN se desconecta cada pocos minutos fuera de la oficina"),
+     _t("Symptoms\nThe VPN connects but drops every 5–10 minutes, usually on hotel, client or "
+        "mobile networks.\n\nCause\nSome networks block the UDP port the VPN uses by default.\n\n"
+        "Solution\n1. Disconnect the VPN.\n2. Choose the “Office (TCP)” profile.\n3. Connect again. "
+        "It is a little slower but works on almost any network.\n\nIf it still drops, open a ticket "
+        "with the name of the network you are on.",
+        "Síntomas\nLa VPN conecta pero se cae cada 5-10 minutos, normalmente en hoteles, en clientes "
+        "o con el móvil.\n\nCausa\nAlgunas redes bloquean el puerto UDP que usa la VPN.\n\nSolución\n"
+        "1. Desconecta la VPN.\n2. Elige el perfil «Oficina (TCP)».\n3. Vuelve a conectar. Es algo "
+        "más lento, pero funciona en casi cualquier red.\n\nSi sigue cayéndose, abre un ticket "
+        "indicando en qué red estás.")),
+    ("nora.khan", "hardware", "everyone", True, 4,
+     _t("The printer prints blank pages after changing the toner",
+        "La impresora saca hojas en blanco después de cambiar el tóner"),
+     _t("New toner cartridges have a protective tape. If it is not removed the printer reports the "
+        "toner as fine but prints blank pages.\n\n1. Open the front cover and take out the cartridge.\n"
+        "2. Pull the coloured tab on its side until the whole tape comes out.\n3. Put it back and "
+        "print a test page.",
+        "Los cartuchos de tóner nuevos llevan una cinta de protección. Si no se quita, la impresora "
+        "dice que el tóner está bien pero saca las hojas en blanco.\n\n1. Abre la tapa frontal y saca "
+        "el cartucho.\n2. Tira de la lengüeta de color del lateral hasta sacar toda la cinta.\n"
+        "3. Vuelve a colocarlo e imprime una página de prueba.")),
+    ("carlos.ruiz", "access", "everyone", True, 6,
+     _t("My password expired: how to get back in", "Mi contraseña ha caducado: cómo volver a entrar"),
+     _t("Passwords expire every 90 days. If it expired while you were away:\n\n1. Call the service "
+        "desk from your desk phone or come to the IT desk on the ground floor.\n2. We will check "
+        "your identity and give you a temporary password in person (never by email).\n3. Windows "
+        "will ask you to choose a new one: at least 12 characters, not used before.\n\nTip: Windows "
+        "warns you 14 days before; change it then from Ctrl+Alt+Del > Change a password.",
+        "Las contraseñas caducan cada 90 días. Si te ha caducado mientras estabas fuera:\n\n"
+        "1. Llama al servicio de soporte desde el teléfono de tu puesto o pasa por el puesto de "
+        "informática de la planta baja.\n2. Comprobaremos tu identidad y te daremos una contraseña "
+        "temporal en persona (nunca por correo).\n3. Windows te pedirá elegir una nueva: al menos 12 "
+        "caracteres y que no hayas usado antes.\n\nConsejo: Windows avisa 14 días antes; cámbiala "
+        "entonces desde Ctrl+Alt+Supr > Cambiar una contraseña.")),
+    ("nora.khan", "software", "everyone", True, None,
+     _t("Excel blocks the macros of a workbook (“Macros from the internet are blocked”)",
+        "Excel bloquea las macros de un libro («Se han bloqueado las macros de Internet»)"),
+     _t("Office blocks macros in files that came from the internet or by email.\n\nIf the workbook "
+        "comes from a trusted colleague:\n1. Close it.\n2. Right-click the file > Properties.\n"
+        "3. Tick “Unblock” at the bottom and press OK.\n4. Open it again.\n\nWorkbooks used every "
+        "month should live in the Finance shared folder, which is already a trusted location.",
+        "Office bloquea las macros de los archivos que vienen de Internet o del correo.\n\nSi el libro "
+        "viene de un compañero de confianza:\n1. Ciérralo.\n2. Botón derecho sobre el archivo > "
+        "Propiedades.\n3. Marca «Desbloquear» abajo y pulsa Aceptar.\n4. Vuelve a abrirlo.\n\nLos "
+        "libros que se usan cada mes deberían estar en la carpeta compartida de Finanzas, que ya es "
+        "una ubicación de confianza.")),
+    ("nora.khan", "software", "staff", True, 9,
+     _t("Outlook crashes when opening a shared calendar (procedure)",
+        "Outlook se cierra al abrir un calendario compartido (procedimiento)"),
+     _t("Seen with the CRM add-in 4.2.\n\n1. Event Viewer > Application: Outlook error 0xc0000005 "
+        "with the add-in DLL.\n2. File > Options > Add-ins > COM Add-ins: untick the CRM add-in.\n"
+        "3. If it fixes it, install CRM add-in 4.3 from Software Center and enable it again.\n"
+        "4. Note the device in the ticket so it is included in the next PCScope software report.",
+        "Visto con el complemento del CRM 4.2.\n\n1. Visor de eventos > Aplicación: error de Outlook "
+        "0xc0000005 con la DLL del complemento.\n2. Archivo > Opciones > Complementos > Complementos "
+        "COM: desmarca el del CRM.\n3. Si se arregla, instala el complemento 4.3 desde el Centro de "
+        "software y vuelve a activarlo.\n4. Anota el equipo en el ticket para que salga en el próximo "
+        "informe de software de PCScope.")),
+    ("carlos.ruiz", "network", "staff", False, None,
+     _t("Meeting room B: slow Wi-Fi (draft)", "Sala B: wifi lento (borrador)"),
+     _t("Access point AP-2F-B is on channel 6 with the neighbours. Pending: move it to 5 GHz "
+        "channel 36 and check again with a speed test during a video call.",
+        "El punto de acceso AP-2F-B está en el canal 6, igual que los vecinos. Pendiente: pasarlo al "
+        "canal 36 de 5 GHz y volver a medir con un test de velocidad durante una videollamada.")),
+]
+
+# Older, closed tickets for the metrics: (category, impact, urgency, title).
+HISTORY_TEMPLATES = [
+    ("hardware", "low", "medium", _t("Mouse not working", "El ratón no funciona")),
+    ("hardware", "low", "high", _t("Laptop does not turn on", "El portátil no enciende")),
+    ("hardware", "medium", "medium", _t("Meeting room screen has no signal", "La pantalla de la sala no recibe señal")),
+    ("hardware", "low", "low", _t("Request: second monitor", "Solicitud: segundo monitor")),
+    ("software", "low", "medium", _t("Teams has no sound in calls", "Teams no tiene sonido en las llamadas")),
+    ("software", "low", "low", _t("Request: install PDF editor", "Solicitud: instalar editor de PDF")),
+    ("software", "medium", "high", _t("ERP shows an error when posting invoices", "El ERP da un error al contabilizar facturas")),
+    ("software", "low", "medium", _t("Outlook asks for the password again and again", "Outlook pide la contraseña una y otra vez")),
+    ("network", "medium", "high", _t("No internet on the second floor", "No hay internet en la segunda planta")),
+    ("network", "low", "medium", _t("Shared drive not showing", "No aparece la unidad compartida")),
+    ("network", "low", "low", _t("Request: guest Wi-Fi for a visitor", "Solicitud: wifi de invitados para una visita")),
+    ("access", "low", "high", _t("Account locked", "Cuenta bloqueada")),
+    ("access", "low", "medium", _t("Access to the Sales shared folder", "Acceso a la carpeta compartida de Ventas")),
+    ("access", "medium", "medium", _t("New starter needs an account", "Una nueva incorporación necesita cuenta")),
+    ("other", "low", "low", _t("Question about phone extensions", "Duda sobre las extensiones de teléfono")),
+]
+HISTORY_DEVICES = ["FIN-LT03", "FIN-PC02", "MKT-PC02", "MKT-LT01", "HR-PC02", "SAL-LT05",
+                   "LEG-PC01", "OPS-PC01", "OPS-PC04", None, None, None]
+HISTORY_ANSWER = _t(
+    "Fixed. Please check it works on your side and reopen the ticket if it does not.",
+    "Solucionado. Comprueba que te funciona y reabre el ticket si no es así.",
+)
+# Business minutes to resolve, per priority (min, max): most on time, some late.
+_HISTORY_RESOLUTION = {"critical": (30, 300), "high": (45, 600), "medium": (60, 1800),
+                       "low": (120, 3000)}
+
+
+def _seed_history(conn, ids, names, lang, now, count) -> None:
+    rng = random.Random(2026)
+    calendar = BusinessCalendar()
+    agents = ["carlos.ruiz", "nora.khan"]
+    requesters = [u for u, _, role in DEMO_USERS if role == "requester"]
+    moments = []
+    while len(moments) < count:
+        day = (now - timedelta(days=rng.uniform(3, 60))).astimezone(calendar.tz)
+        if day.weekday() >= 5:
+            continue
+        moments.append(day.replace(hour=rng.randint(8, 17), minute=rng.randrange(0, 60, 5),
+                                   second=0, microsecond=0))
+    for created in sorted(moments):
+        category, impact, urgency, title = rng.choice(HISTORY_TEMPLATES)
+        priority = priority_for(impact, urgency)
+        requester, agent = ids[rng.choice(requesters)], rng.choice(agents)
+        responded = calendar.add_business_seconds(created, rng.randint(5, 200) * 60)
+        low, high = _HISTORY_RESOLUTION[priority]
+        resolved = calendar.add_business_seconds(created, rng.randint(low, high) * 60)
+        resolved = max(resolved, responded)
+        closed = resolved + timedelta(days=rng.choice((1, 2, 3)))
+        if closed >= now:
+            continue
+        device = rng.choice(HISTORY_DEVICES)
+        score = rng.choices((None, 5, 4, 3, 2), weights=(45, 30, 15, 7, 3))[0]
+        cur = conn.execute(
+            "INSERT INTO tickets (title, description, category, impact, urgency, priority, status,"
+            " requester_id, assignee_id, device, created_at, updated_at, first_response_at,"
+            " resolved_at, closed_at, satisfaction) VALUES (?, ?, ?, ?, ?, ?, 'closed', ?, ?, ?,"
+            " ?, ?, ?, ?, ?, ?)",
+            (title[lang], title[lang] + ".", category, impact, urgency, priority, requester,
+             ids[agent], device, _iso(created), _iso(closed), _iso(responded), _iso(resolved),
+             _iso(closed), score),
+        )
+        tid = cur.lastrowid
+        events = [
+            (requester, "created", None, "new", created),
+            (ids[agent], "assignee", None, names[agent], responded),
+            (ids[agent], "status", "new", "open", responded),
+            (ids[agent], "status", "open", "resolved", resolved),
+            (requester, "status", "resolved", "closed", closed),
+        ]
+        if score:
+            events.append((requester, "satisfaction", None, str(score), closed))
+        conn.executemany(
+            "INSERT INTO ticket_events (ticket_id, actor_id, field, old_value, new_value,"
+            " created_at) VALUES (?, ?, ?, ?, ?, ?)",
+            [(tid, actor, field, old, new, _iso(at)) for actor, field, old, new, at in events],
+        )
+        conn.execute(
+            "INSERT INTO comments (ticket_id, author_id, body, internal, created_at)"
+            " VALUES (?, ?, ?, 0, ?)",
+            (tid, ids[agent], HISTORY_ANSWER[lang], _iso(resolved)),
+        )
+
+
+def _seed_articles(conn, ids, scenario_ids, lang, now) -> None:
+    for n, (author, category, audience, published, source, title, body) in enumerate(ARTICLES):
+        moment = _iso(now - timedelta(days=20 - n * 3))
+        conn.execute(
+            "INSERT INTO articles (title, body, category, audience, status, source_ticket_id,"
+            " author_id, views, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (title[lang], body[lang], category, audience, "published" if published else "draft",
+             scenario_ids.get(source) if source is not None else None, ids[author],
+             [41, 27, 63, 18, 9, 0][n], moment, moment),
+        )
 
 
 def examples_dir() -> Path:
