@@ -159,6 +159,49 @@ table.tickets { width: 100%; border-collapse: collapse; }
 .history li:last-child { border-bottom: 0; }
 .history .muted { display: block; font-size: .78rem; }
 
+/* SLA */
+.sla { display: inline-block; font-size: .78rem; font-weight: 600; padding: .05rem .5rem; border-radius: 99px; border: 1px solid currentColor; white-space: nowrap; }
+.sla-met, .sla-running { color: var(--s-resolved); }
+.sla-at_risk { color: var(--p-high); }
+.sla-breached { color: var(--p-critical); background: var(--err-bg); }
+.sla-paused { color: var(--s-pending); }
+td .sla + small { display: block; margin-top: .15rem; }
+.counts .sep { margin-left: .6rem; }
+.clock { margin-bottom: .9rem; }
+.clock-head { display: flex; justify-content: space-between; align-items: center; font-weight: 500; }
+.clock .meta { margin: .2rem 0 .35rem; }
+.bar { height: 6px; border-radius: 99px; background: var(--border); overflow: hidden; }
+.bar span { display: block; height: 100%; background: var(--s-resolved); }
+.bar-at_risk span { background: var(--p-high); }
+.bar-breached span { background: var(--p-critical); }
+.bar-paused span { background: var(--s-pending); }
+.bar .w0 { width: 0%; }
+.bar .w5 { width: 5%; }
+.bar .w10 { width: 10%; }
+.bar .w15 { width: 15%; }
+.bar .w20 { width: 20%; }
+.bar .w25 { width: 25%; }
+.bar .w30 { width: 30%; }
+.bar .w35 { width: 35%; }
+.bar .w40 { width: 40%; }
+.bar .w45 { width: 45%; }
+.bar .w50 { width: 50%; }
+.bar .w55 { width: 55%; }
+.bar .w60 { width: 60%; }
+.bar .w65 { width: 65%; }
+.bar .w70 { width: 70%; }
+.bar .w75 { width: 75%; }
+.bar .w80 { width: 80%; }
+.bar .w85 { width: 85%; }
+.bar .w90 { width: 90%; }
+.bar .w95 { width: 95%; }
+.bar .w100 { width: 100%; }
+.preview { margin: -.2rem 0 1rem; color: var(--muted); }
+.row-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+p.label { font-weight: 600; margin: 0 0 .5rem; }
+.stack small { display: block; margin-top: .5rem; }
+.filters label.check { white-space: nowrap; }
+
 @media (max-width: 860px) {
   .ticket-layout { grid-template-columns: 1fr; }
   .row { grid-template-columns: 1fr; }

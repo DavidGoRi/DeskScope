@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import json
 import sqlite3
 import time
 from collections import defaultdict, deque
 from collections.abc import Callable, Iterator
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import quote
 
@@ -22,7 +23,9 @@ from .db import connect, init_db
 from .i18n import LANGUAGES, pick_language, translate
 from .models import (
     CATEGORIES,
+    LEVELS,
     PRIORITIES,
+    PRIORITY_MATRIX,
     ROLES,
     STATUSES,
     DeskError,
@@ -30,6 +33,7 @@ from .models import (
     User,
     ValidationError,
 )
+from .sla import SlaPolicy
 
 HERE = Path(__file__).parent
 LOGIN_MAX_FAILURES = 5
@@ -68,9 +72,13 @@ def create_app(
     secret_key: str,
     *,
     secure_cookies: bool = False,
+    sla_policy: SlaPolicy | None = None,
 ) -> FastAPI:
     """Build the application. ``secure_cookies`` should be on behind HTTPS."""
     db_path = Path(db_path)
+    policy = sla_policy or SlaPolicy()
+    # The impact x urgency matrix, for the live priority preview in the form.
+    matrix_json = json.dumps({f"{i}|{u}": p for (i, u), p in PRIORITY_MATRIX.items()})
     init_db(db_path)
 
     app = FastAPI(
@@ -144,10 +152,17 @@ def create_app(
             {"kind": kind, "key": key, "params": {k: str(v) for k, v in params.items()}}
         )
 
-    def fmt_time(value: str | None) -> str:
+    def fmt_time(value: str | datetime | None) -> str:
         if not value:
             return "—"
-        return datetime.fromisoformat(value).astimezone().strftime("%Y-%m-%d %H:%M")
+        moment = value if isinstance(value, datetime) else datetime.fromisoformat(value)
+        return moment.astimezone(policy.calendar.tz).strftime("%Y-%m-%d %H:%M")
+
+    def fmt_duration(seconds: float) -> str:
+        """Business time as "2 h 05 min" or "40 min"."""
+        minutes = int(abs(seconds) // 60)
+        hours, minutes = divmod(minutes, 60)
+        return f"{hours} h {minutes:02d} min" if hours else f"{minutes} min"
 
     def render(
         request: Request, name: str, user: User | None, status_code: int = 200, **ctx: object
@@ -163,6 +178,10 @@ def create_app(
                 return t("event.status", old=t(f"status.{old}"), new=t(f"status.{new}"))
             if field == "priority":
                 return t("event.priority", old=t(f"priority.{old}"), new=t(f"priority.{new}"))
+            if field in ("impact", "urgency"):
+                return t(
+                    f"event.{field}", old=t(f"{field}.{old}.short"), new=t(f"{field}.{new}.short")
+                )
             if field == "assignee":
                 return t("event.assignee", new=new) if new else t("event.unassigned", old=old)
             return t(f"event.{field}")
@@ -174,6 +193,10 @@ def create_app(
             t=t,
             event_text=event_text,
             fmt_time=fmt_time,
+            fmt_duration=fmt_duration,
+            LEVELS=LEVELS,
+            matrix_json=matrix_json,
+            business_hours=policy.calendar,
             csrf=csrf_token(request),
             messages=request.session.pop("flash", []),
             version=__version__,
@@ -303,6 +326,7 @@ def create_app(
         scope: str = "all",
         q: str = "",
         sort: str = "updated",
+        sla: str = "",
         user: User = Depends(require_user),
         conn: sqlite3.Connection = Depends(get_conn),
     ):
@@ -310,19 +334,31 @@ def create_app(
             status = "active"
         if scope not in tickets.SCOPES:
             scope = "all"
-        if sort not in tickets.SORTS:
+        if sort not in tickets.SORTS or (sort == "sla" and not user.is_staff):
             sort = "updated"
-        flt = tickets.TicketFilter(status=status, scope=scope, query=q[:100], sort=sort)
+        flt = tickets.TicketFilter(
+            status=status, scope=scope, query=q[:100], sort=sort,
+            sla_problems=sla == "problems" and user.is_staff,
+        )
+        now = datetime.now(timezone.utc)
+        summary = None
+        if user.is_staff:
+            active = tickets.list_with_sla(conn, user, tickets.TicketFilter(), policy, now)
+            summary = tickets.sla_summary(active)
+        sorts = [s for s in tickets.SORTS if user.is_staff or s != "sla"]
         return render(
             request, "tickets.html", user,
-            items=tickets.list_tickets(conn, user, flt),
+            items=tickets.list_with_sla(conn, user, flt, policy, now),
             counts=tickets.status_counts(conn, user),
-            flt=flt, scopes=tickets.SCOPES, sorts=list(tickets.SORTS),
+            sla_summary=summary,
+            flt=flt, scopes=tickets.SCOPES, sorts=sorts,
         )
 
     @app.get("/tickets/new")
     def ticket_new_form(request: Request, user: User = Depends(require_user)):
-        return render(request, "ticket_new.html", user, form={"priority": "medium"})
+        return render(
+            request, "ticket_new.html", user, form={"impact": "low", "urgency": "medium"}
+        )
 
     @app.post("/tickets/new", dependencies=[Depends(check_csrf)])
     def ticket_create(
@@ -330,19 +366,20 @@ def create_app(
         title: str = Form(""),
         description: str = Form(""),
         category: str = Form("other"),
-        priority: str = Form("medium"),
+        impact: str = Form("low"),
+        urgency: str = Form("medium"),
         device: str = Form(""),
         user: User = Depends(require_user),
         conn: sqlite3.Connection = Depends(get_conn),
     ):
         try:
             ticket_id = tickets.create_ticket(
-                conn, user, title, description, category, priority, device
+                conn, user, title, description, category, impact, urgency, device
             )
         except ValidationError as exc:
             form = {
                 "title": title, "description": description, "category": category,
-                "priority": priority, "device": device,
+                "impact": impact, "urgency": urgency, "device": device,
             }
             return render(
                 request, "ticket_new.html", user, status_code=400,
@@ -359,6 +396,7 @@ def create_app(
         conn: sqlite3.Connection = Depends(get_conn),
     ):
         ticket = tickets.get_ticket(conn, user, ticket_id)
+        tickets.attach_sla(conn, policy, [ticket])
         return render(
             request, "ticket.html", user,
             ticket=ticket,
@@ -411,17 +449,18 @@ def create_app(
             "ticket.updated",
         )
 
-    @app.post("/tickets/{ticket_id:int}/priority", dependencies=[Depends(check_csrf)])
-    def ticket_priority(
+    @app.post("/tickets/{ticket_id:int}/classify", dependencies=[Depends(check_csrf)])
+    def ticket_classify(
         request: Request,
         ticket_id: int,
-        priority: str = Form(""),
+        impact: str = Form(""),
+        urgency: str = Form(""),
         user: User = Depends(require_user),
         conn: sqlite3.Connection = Depends(get_conn),
     ):
         return run_action(
             request, ticket_id,
-            lambda: tickets.set_priority(conn, user, ticket_id, priority),
+            lambda: tickets.set_classification(conn, user, ticket_id, impact, urgency),
             "ticket.updated",
         )
 

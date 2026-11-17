@@ -4,7 +4,7 @@
 <section class="card form-card">
   <h1>{{ t('new.title') }}</h1>
   {% if error_key %}<div class="flash flash-error" role="alert">{{ t(error_key, **error_params) }}</div>{% endif %}
-  <form method="post" action="/tickets/new">
+  <form method="post" action="/tickets/new" data-matrix="{{ matrix_json }}">
     <input type="hidden" name="csrf_token" value="{{ csrf }}">
     <label>{{ t('new.title_label') }}
       <input name="title" value="{{ form.title or '' }}" maxlength="120" required>
@@ -16,18 +16,25 @@
           {% for c in CATEGORIES %}<option value="{{ c }}"{% if form.category == c %} selected{% endif %}>{{ t('category.' ~ c) }}</option>{% endfor %}
         </select>
       </label>
-      <label>{{ t('col.priority') }}
-        <select name="priority">
-          {% for p in PRIORITIES %}{% if user.is_staff or p != 'critical' %}
-          <option value="{{ p }}"{% if form.priority == p %} selected{% endif %}>{{ t('priority.' ~ p) }}</option>
-          {% endif %}{% endfor %}
-        </select>
-      </label>
       <label>{{ t('new.device') }}
         <input name="device" value="{{ form.device or '' }}" maxlength="64" placeholder="FIN-LT03">
         <small>{{ t('new.device_hint') }}</small>
       </label>
     </div>
+    <div class="row row-2">
+      <label>{{ t('new.impact') }}
+        <select name="impact">
+          {% for l in LEVELS|reverse %}<option value="{{ l }}"{% if form.impact == l %} selected{% endif %}>{{ t('impact.' ~ l) }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>{{ t('new.urgency') }}
+        <select name="urgency">
+          {% for l in LEVELS|reverse %}<option value="{{ l }}"{% if form.urgency == l %} selected{% endif %}>{{ t('urgency.' ~ l) }}</option>{% endfor %}
+        </select>
+      </label>
+    </div>
+    <p class="preview">{{ t('new.priority_preview') }} <span data-priority-preview class="prio">—</span>
+      {% for p in PRIORITIES %}<span hidden data-label="{{ p }}">{{ t('priority.' ~ p) }}</span>{% endfor %}</p>
     <label>{{ t('new.description') }}
       <textarea name="description" rows="8" maxlength="5000" required>{{ form.description or '' }}</textarea>
       <small>{{ t('new.description_hint') }}</small>

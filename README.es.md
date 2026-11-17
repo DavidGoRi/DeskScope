@@ -6,7 +6,7 @@ DeskScope es la cuarta pieza de un pequeño kit de sistemas: [PCScope](https://g
 
 *Read in [English](README.md).*
 
-## Qué hace ya (v0.1, fase 1)
+## Qué hace ya (v0.2, fases 1 y 2)
 
 - **Tickets** con categoría, prioridad, equipo, estado y conversación.
 - **Tres roles**: el empleado abre y sigue *sus* tickets; el técnico ve y gestiona todos; el administrador además gestiona las cuentas.
@@ -14,6 +14,22 @@ DeskScope es la cuarta pieza de un pequeño kit de sistemas: [PCScope](https://g
 - **Notas internas** que el empleado no ve, e **historial** de cada cambio: quién y cuándo.
 - **Búsqueda y filtros** por número, texto, equipo, estado, "asignados a mí" y "sin asignar".
 - Interfaz en **inglés y español**, modo claro y oscuro, y uso desde el móvil.
+
+### SLA al estilo ITIL
+
+- **Prioridad:** el empleado no la elige. Responde a dos preguntas:
+  - *¿a quién afecta?* (impacto);
+  - *¿puedes seguir trabajando?* (urgencia).
+
+  La prioridad sale de la matriz ITIL y se ve mientras escribe. El técnico puede reclasificar el ticket y cada cambio queda en el historial.
+- **Dos relojes por ticket:** primera respuesta y resolución.
+- **Horario laboral:** solo cuenta el tiempo de trabajo, con los días, el horario, la zona horaria y los festivos de `sla.json`.
+- **Pausa:** el reloj de resolución se para mientras el ticket espera al usuario.
+- **Estados:** en plazo, en riesgo (al 75 % del plazo), incumplido, en pausa y cumplido.
+- **En la lista:** contadores, filtro "en riesgo o incumplido" y orden por vencimiento.
+- **En la ficha:** barras de progreso para los dos relojes.
+
+`sla.example.json` trae el horario de Madrid y los festivos nacionales de 2026 y 2027. `deskscope sla` comprueba el archivo y muestra la política que se está usando.
 
 ### Seguridad
 
@@ -43,7 +59,7 @@ Todas las cuentas de la demo tienen la contraseña `deskscope-demo`:
 ## Hoja de ruta
 
 1. ✅ **Núcleo:** tickets, roles, flujo, comentarios, historial e interfaz bilingüe.
-2. **SLA (ITIL):** matriz impacto × urgencia y plazos en horario laboral con festivos.
+2. ✅ **SLA (ITIL):** matriz impacto × urgencia, plazos en horario laboral con festivos y pausa mientras se espera al usuario.
 3. **Integraciones:**
    - ficha de PCScope en el ticket;
    - tickets automáticos desde PCScope y NetScope;

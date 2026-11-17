@@ -7,6 +7,10 @@
     <li><a href="/tickets?status={{ s }}&scope={{ flt.scope }}" class="pill status-{{ s }}{% if flt.status == s %} is-current{% endif %}">
       {{ t('status.' ~ s) }} <b>{{ counts[s] }}</b></a></li>
     {% endfor %}
+    {% if sla_summary %}
+    <li class="sep"><a href="/tickets?sla=problems&sort=sla" class="pill sla-at_risk{% if flt.sla_problems %} is-current{% endif %}">{{ t('sla.at_risk_count') }} <b>{{ sla_summary.at_risk }}</b></a></li>
+    <li><a href="/tickets?sla=problems&sort=sla" class="pill sla-breached{% if flt.sla_problems %} is-current{% endif %}">{{ t('sla.breached_count') }} <b>{{ sla_summary.breached }}</b></a></li>
+    {% endif %}
   </ul>
 </div>
 
@@ -21,6 +25,7 @@
   <select name="scope" aria-label="{{ t('scope.all') }}">
     {% for s in scopes %}<option value="{{ s }}"{% if flt.scope == s %} selected{% endif %}>{{ t('scope.' ~ s) }}</option>{% endfor %}
   </select>
+  <label class="check"><input type="checkbox" name="sla" value="problems"{% if flt.sla_problems %} checked{% endif %}> {{ t('sla.filter') }}</label>
   {% endif %}
   <select name="sort" aria-label="{{ t('sort.updated') }}">
     {% for s in sorts %}<option value="{{ s }}"{% if flt.sort == s %} selected{% endif %}>{{ t('sort.' ~ s) }}</option>{% endfor %}
@@ -35,7 +40,9 @@
     <th>{{ t('col.id') }}</th><th>{{ t('col.title') }}</th><th>{{ t('col.status') }}</th>
     <th>{{ t('col.priority') }}</th><th>{{ t('col.category') }}</th>
     {% if user.is_staff %}<th>{{ t('col.requester') }}</th>{% endif %}
-    <th>{{ t('col.assignee') }}</th><th>{{ t('col.updated') }}</th>
+    <th>{{ t('col.assignee') }}</th>
+    {% if user.is_staff %}<th>{{ t('col.sla') }}</th>{% endif %}
+    <th>{{ t('col.updated') }}</th>
   </tr></thead>
   <tbody>
   {% for it in items %}
@@ -48,6 +55,10 @@
       <td>{{ t('category.' ~ it.category) }}</td>
       {% if user.is_staff %}<td>{{ it.requester_name }}</td>{% endif %}
       <td>{{ it.assignee_name or '—' }}</td>
+      {% if user.is_staff %}{% set clock = it.sla.worst %}
+      <td class="nowrap"><span class="sla sla-{{ clock.state }}" title="{{ t('sla.' ~ clock.name) }} · {{ t('sla.due') }} {{ fmt_time(clock.due) }}">{{ t('sla.state.' ~ clock.state) }}</span>
+        {% if not clock.finished and clock.state != 'paused' %}<small class="muted">{% if clock.remaining_seconds >= 0 %}{{ t('sla.left', time=fmt_duration(clock.remaining_seconds)) }}{% else %}{{ t('sla.over', time=fmt_duration(clock.remaining_seconds)) }}{% endif %}</small>{% endif %}</td>
+      {% endif %}
       <td class="muted nowrap">{{ fmt_time(it.updated_at) }}</td>
     </tr>
   {% endfor %}

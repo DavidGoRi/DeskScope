@@ -10,6 +10,7 @@ import sqlite3
 from datetime import datetime, timedelta, timezone
 
 from . import security
+from .models import priority_for
 
 DEMO_PASSWORD = "deskscope-demo"
 
@@ -33,10 +34,10 @@ def _t(en: str, es: str) -> dict[str, str]:
 
 # Each scenario: who opened it, when (hours ago), and what happened after
 # (hours after opening). Steps: ("assign", agent) | ("status", new_status) |
-# ("priority", new_priority) | ("comment", author, text, internal).
+# ("classify", impact, urgency) | ("comment", author, text, internal).
 SCENARIOS = [
     {
-        "requester": "ana.garcia", "category": "hardware", "priority": "high", "device": "FIN-LT03",
+        "requester": "ana.garcia", "category": "hardware", "impact": "low", "urgency": "high", "device": "FIN-LT03",
         "age": 30,
         "title": _t("Laptop battery drains in about an hour", "La batería del portátil dura una hora"),
         "description": _t(
@@ -60,7 +61,7 @@ SCENARIOS = [
         ],
     },
     {
-        "requester": "luis.moreau", "category": "software", "priority": "medium", "device": "MKT-PC02",
+        "requester": "luis.moreau", "category": "software", "impact": "low", "urgency": "high", "device": "MKT-PC02",
         "age": 70,
         "title": _t("Acrobat keeps asking me to sign in", "Acrobat me pide iniciar sesión todo el rato"),
         "description": _t(
@@ -77,7 +78,7 @@ SCENARIOS = [
         ],
     },
     {
-        "requester": "marta.silva", "category": "access", "priority": "high", "device": None,
+        "requester": "marta.silva", "category": "access", "impact": "medium", "urgency": "high", "device": None,
         "age": 26,
         "title": _t("New hire needs access to the HR shared folder", "Una nueva incorporación necesita acceso a la carpeta de RR. HH."),
         "description": _t(
@@ -98,7 +99,7 @@ SCENARIOS = [
         ],
     },
     {
-        "requester": "john.smith", "category": "network", "priority": "high", "device": "SAL-LT05",
+        "requester": "john.smith", "category": "network", "impact": "low", "urgency": "high", "device": "SAL-LT05",
         "age": 5,
         "title": _t("VPN disconnects every 10 minutes", "La VPN se desconecta cada 10 minutos"),
         "description": _t(
@@ -107,7 +108,7 @@ SCENARIOS = [
         ),
         "steps": [
             (0.2, "assign", "carlos.ruiz"),
-            (0.3, "priority", "critical"),
+            (0.3, "classify", "medium", "high"),
             (0.5, "comment", "carlos.ruiz", _t(
                 "Client network blocks UDP 4500. Testing the TCP 443 fallback profile.",
                 "La red del cliente bloquea el UDP 4500. Probando el perfil alternativo por TCP 443.",
@@ -119,7 +120,7 @@ SCENARIOS = [
         ],
     },
     {
-        "requester": "elena.rossi", "category": "hardware", "priority": "medium", "device": "LEG-PC01",
+        "requester": "elena.rossi", "category": "hardware", "impact": "medium", "urgency": "medium", "device": "LEG-PC01",
         "age": 190,
         "title": _t("Printer on floor 2 prints blank pages", "La impresora de la planta 2 imprime hojas en blanco"),
         "description": _t(
@@ -138,7 +139,7 @@ SCENARIOS = [
         ],
     },
     {
-        "requester": "omar.tanaka", "category": "software", "priority": "low", "device": "OPS-PC04",
+        "requester": "omar.tanaka", "category": "software", "impact": "low", "urgency": "low", "device": "OPS-PC04",
         "age": 3,
         "title": _t("Request: install 7-Zip", "Solicitud: instalar 7-Zip"),
         "description": _t(
@@ -148,7 +149,7 @@ SCENARIOS = [
         "steps": [],
     },
     {
-        "requester": "ana.garcia", "category": "access", "priority": "medium", "device": None,
+        "requester": "ana.garcia", "category": "access", "impact": "low", "urgency": "high", "device": None,
         "age": 240,
         "title": _t("Password expired while I was on holiday", "Mi contraseña caducó durante las vacaciones"),
         "description": _t(
@@ -166,7 +167,7 @@ SCENARIOS = [
         ],
     },
     {
-        "requester": "luis.moreau", "category": "network", "priority": "high", "device": "MKT-LT01",
+        "requester": "luis.moreau", "category": "network", "impact": "medium", "urgency": "high", "device": "MKT-LT01",
         "age": 1.5,
         "title": _t("Wi-Fi in meeting room B is very slow", "El wifi de la sala de reuniones B va muy lento"),
         "description": _t(
@@ -176,7 +177,7 @@ SCENARIOS = [
         "steps": [],
     },
     {
-        "requester": "marta.silva", "category": "hardware", "priority": "low", "device": "HR-PC02",
+        "requester": "marta.silva", "category": "hardware", "impact": "low", "urgency": "medium", "device": "HR-PC02",
         "age": 50,
         "title": _t("Second monitor flickers", "El segundo monitor parpadea"),
         "description": _t(
@@ -193,7 +194,7 @@ SCENARIOS = [
         ],
     },
     {
-        "requester": "john.smith", "category": "software", "priority": "high", "device": "SAL-LT05",
+        "requester": "john.smith", "category": "software", "impact": "medium", "urgency": "high", "device": "SAL-LT05",
         "age": 20,
         "title": _t("Outlook crashes when I open the shared sales calendar", "Outlook se cierra al abrir el calendario compartido de ventas"),
         "description": _t(
@@ -209,7 +210,7 @@ SCENARIOS = [
         ],
     },
     {
-        "requester": "elena.rossi", "category": "other", "priority": "low", "device": None,
+        "requester": "elena.rossi", "category": "other", "impact": "low", "urgency": "low", "device": None,
         "age": 100,
         "title": _t("Headset for video calls", "Auriculares para videollamadas"),
         "description": _t(
@@ -226,7 +227,7 @@ SCENARIOS = [
         ],
     },
     {
-        "requester": "omar.tanaka", "category": "hardware", "priority": "high", "device": "OPS-PC01",
+        "requester": "omar.tanaka", "category": "hardware", "impact": "medium", "urgency": "high", "device": "OPS-PC01",
         "age": 8,
         "title": _t("Warehouse label printer not printing", "La impresora de etiquetas del almacén no imprime"),
         "description": _t(
@@ -235,7 +236,7 @@ SCENARIOS = [
         ),
         "steps": [
             (0.1, "assign", "carlos.ruiz"),
-            (0.2, "priority", "critical"),
+            (0.2, "classify", "high", "high"),
             (0.4, "comment", "carlos.ruiz", _t(
                 "On my way. Meanwhile you can print the labels from OPS-PC02, it uses the same template.",
                 "Voy para allá. Mientras tanto puedes imprimir las etiquetas desde OPS-PC02, que tiene la misma plantilla.",
@@ -243,7 +244,7 @@ SCENARIOS = [
         ],
     },
     {
-        "requester": "ana.garcia", "category": "software", "priority": "medium", "device": "FIN-PC02",
+        "requester": "ana.garcia", "category": "software", "impact": "medium", "urgency": "medium", "device": "FIN-PC02",
         "age": 0.7,
         "title": _t("Excel macros blocked after the update", "Excel bloquea las macros desde la actualización"),
         "description": _t(
@@ -253,7 +254,7 @@ SCENARIOS = [
         "steps": [],
     },
     {
-        "requester": "marta.silva", "category": "network", "priority": "medium", "device": None,
+        "requester": "marta.silva", "category": "network", "impact": "low", "urgency": "medium", "device": None,
         "age": 400,
         "title": _t("Cannot reach the intranet from home", "No puedo entrar en la intranet desde casa"),
         "description": _t(
@@ -305,11 +306,14 @@ def seed_demo(
     # Oldest first, so ticket numbers grow with time like in a real desk.
     for sc in sorted(SCENARIOS, key=lambda s: -s["age"]):
         opened = now - timedelta(hours=sc["age"])
+        impact, urgency = sc["impact"], sc["urgency"]
+        priority = priority_for(impact, urgency)
         cur = conn.execute(
-            "INSERT INTO tickets (title, description, category, priority, status, requester_id,"
-            " device, created_at, updated_at) VALUES (?, ?, ?, ?, 'new', ?, ?, ?, ?)",
-            (sc["title"][lang], sc["description"][lang], sc["category"], sc["priority"],
-             ids[sc["requester"]], sc["device"], _iso(opened), _iso(opened)),
+            "INSERT INTO tickets (title, description, category, impact, urgency, priority,"
+            " status, requester_id, device, created_at, updated_at)"
+            " VALUES (?, ?, ?, ?, ?, ?, 'new', ?, ?, ?, ?)",
+            (sc["title"][lang], sc["description"][lang], sc["category"], impact, urgency,
+             priority, ids[sc["requester"]], sc["device"], _iso(opened), _iso(opened)),
         )
         tid = cur.lastrowid
         requester = ids[sc["requester"]]
@@ -318,8 +322,8 @@ def seed_demo(
             " VALUES (?, ?, 'created', 'new', ?)",
             (tid, requester, _iso(opened)),
         )
-        status, priority, assignee = "new", sc["priority"], None
-        resolved_at = closed_at = None
+        status, assignee = "new", None
+        resolved_at = closed_at = first_response = None
         updated = opened
 
         def log(actor, field, old, new, at, tid=tid):
@@ -344,11 +348,16 @@ def seed_demo(
                 status = step[2]
                 if status == "resolved":
                     resolved_at = at
+                    first_response = first_response or at
                 elif status == "closed":
                     closed_at = at
-            elif kind == "priority":
-                log(ids[assignee], "priority", priority, step[2], at)
-                priority = step[2]
+            elif kind == "classify":
+                new_priority = priority_for(step[2], step[3])
+                for field, old, new in (("impact", impact, step[2]), ("urgency", urgency, step[3]),
+                                        ("priority", priority, new_priority)):
+                    if old != new:
+                        log(ids[assignee], field, old, new, at)
+                impact, urgency, priority = step[2], step[3], new_priority
             elif kind == "comment":
                 _, _, author, text, internal = step
                 conn.execute(
@@ -356,14 +365,17 @@ def seed_demo(
                     " VALUES (?, ?, ?, ?, ?)",
                     (tid, ids[author], text[lang], int(internal), _iso(at)),
                 )
+                if not internal and author != sc["requester"]:
+                    first_response = first_response or at
             updated = at
 
         conn.execute(
-            "UPDATE tickets SET status = ?, priority = ?, assignee_id = ?, updated_at = ?,"
-            " resolved_at = ?, closed_at = ? WHERE id = ?",
-            (status, priority, ids[assignee] if assignee else None, _iso(updated),
-             _iso(resolved_at) if resolved_at else None,
-             _iso(closed_at) if closed_at else None, tid),
+            "UPDATE tickets SET status = ?, impact = ?, urgency = ?, priority = ?, assignee_id = ?,"
+            " updated_at = ?, resolved_at = ?, closed_at = ?, first_response_at = ? WHERE id = ?",
+            (status, impact, urgency, priority, ids[assignee] if assignee else None,
+             _iso(updated), _iso(resolved_at) if resolved_at else None,
+             _iso(closed_at) if closed_at else None,
+             _iso(first_response) if first_response else None, tid),
         )
     conn.commit()
     return ids

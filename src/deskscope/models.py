@@ -11,6 +11,24 @@ STATUSES = ("new", "open", "pending", "resolved", "closed")
 OPEN_STATUSES = frozenset({"new", "open", "pending"})
 PRIORITIES = ("critical", "high", "medium", "low")
 CATEGORIES = ("hardware", "software", "network", "access", "other")
+LEVELS = ("high", "medium", "low")
+
+# ITIL priority matrix: impact (how many are affected) x urgency (how fast it hurts).
+PRIORITY_MATRIX: dict[tuple[str, str], str] = {
+    ("high", "high"): "critical",
+    ("high", "medium"): "high",
+    ("high", "low"): "medium",
+    ("medium", "high"): "high",
+    ("medium", "medium"): "medium",
+    ("medium", "low"): "low",
+    ("low", "high"): "medium",
+    ("low", "medium"): "low",
+    ("low", "low"): "low",
+}
+
+
+def priority_for(impact: str, urgency: str) -> str:
+    return PRIORITY_MATRIX[(impact, urgency)]
 
 # Workflow for staff. "closed" is final: a closed ticket is reopened by
 # opening a new one, which keeps the metrics of the old one honest.

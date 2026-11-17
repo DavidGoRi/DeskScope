@@ -28,6 +28,8 @@ dependencies = [
     "jinja2>=3.1",
     "python-multipart>=0.0.9",
     "itsdangerous>=2.1",
+    # Windows has no IANA time zone database; the official PEP 615 package provides it.
+    "tzdata>=2024.1; sys_platform == 'win32'",
 ]
 
 [project.optional-dependencies]
@@ -46,7 +48,7 @@ version = { attr = "deskscope.__version__" }
 where = ["src"]
 
 [tool.setuptools.package-data]
-deskscope = ["schema.sql", "templates/*.html", "static/*"]
+deskscope = ["migrations/*.sql", "templates/*.html", "static/*"]
 
 [tool.ruff]
 line-length = 100

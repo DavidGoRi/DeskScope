@@ -11,7 +11,7 @@ from deskscope.web import safe_next
 
 def open_ticket(client, title="Monitor flickers", **extra):
     data = {"title": title, "description": "Right screen", "category": "hardware",
-            "priority": "medium", "device": "", "csrf_token": csrf_from(client, "/tickets/new")}
+            "impact": "low", "urgency": "medium", "device": "", "csrf_token": csrf_from(client, "/tickets/new")}
     data.update(extra)
     return client.post("/tickets/new", data=data, follow_redirects=False)
 
@@ -130,7 +130,8 @@ def test_technician_works_a_ticket(client, conn, people):
     url = f"/tickets/{tid}"
     token = csrf_from(client, url)
     client.post(f"{url}/assign", data={"assignee": str(people["agent"].id), "csrf_token": token})
-    client.post(f"{url}/priority", data={"priority": "critical", "csrf_token": token})
+    client.post(f"{url}/classify", data={"impact": "high", "urgency": "high",
+                                         "csrf_token": token})
     client.post(f"{url}/comment", data={"body": "UDP 4500 blocked", "internal": "on",
                                         "csrf_token": token})
     r = client.post(f"{url}/status", data={"status": "resolved", "csrf_token": token})

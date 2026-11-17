@@ -32,11 +32,16 @@ def test_create_ticket_defaults(conn, people):
     assert [(e["field"], e["new_value"]) for e in events] == [("created", "new")]
 
 
-def test_requesters_cannot_open_critical_tickets(conn, people):
-    tid = new(conn, people["req"], priority="critical")
-    assert tickets.get_ticket(conn, people["req"], tid)["priority"] == "high"
-    tid = new(conn, people["agent"], priority="critical")
-    assert tickets.get_ticket(conn, people["agent"], tid)["priority"] == "critical"
+@pytest.mark.parametrize(
+    ("impact", "urgency", "priority"),
+    [("high", "high", "critical"), ("high", "medium", "high"), ("medium", "high", "high"),
+     ("high", "low", "medium"), ("low", "high", "medium"), ("medium", "medium", "medium"),
+     ("medium", "low", "low"), ("low", "medium", "low"), ("low", "low", "low")],
+)
+def test_priority_follows_the_itil_matrix(conn, people, impact, urgency, priority):
+    tid = new(conn, people["req"], impact=impact, urgency=urgency)
+    t = tickets.get_ticket(conn, people["req"], tid)
+    assert (t["impact"], t["urgency"], t["priority"]) == (impact, urgency, priority)
 
 
 @pytest.mark.parametrize(
@@ -47,7 +52,8 @@ def test_requesters_cannot_open_critical_tickets(conn, people):
         ({"description": ""}, "error.description_invalid"),
         ({"description": "x" * 5001}, "error.description_invalid"),
         ({"category": "coffee"}, "error.category_invalid"),
-        ({"priority": "urgent"}, "error.priority_invalid"),
+        ({"impact": "huge"}, "error.classification_invalid"),
+        ({"urgency": "yesterday"}, "error.classification_invalid"),
         ({"device": "PC 01"}, "error.device_invalid"),
         ({"device": "X" * 65}, "error.device_invalid"),
     ],
@@ -123,9 +129,9 @@ def test_search(conn, people):
 
 
 def test_sort_by_priority(conn, people):
-    low = new(conn, people["agent"], priority="low")
-    crit = new(conn, people["agent"], priority="critical")
-    med = new(conn, people["agent"], priority="medium")
+    low = new(conn, people["agent"], impact="low", urgency="low")
+    crit = new(conn, people["agent"], impact="high", urgency="high")
+    med = new(conn, people["agent"], impact="medium", urgency="medium")
     got = ids(tickets.list_tickets(conn, people["agent"], TicketFilter(sort="priority")))
     assert got == [crit, med, low]
 
@@ -164,7 +170,7 @@ def test_closed_is_final(conn, people):
     with pytest.raises(ValidationError):
         tickets.assign(conn, people["agent"], tid, people["agent"].id)
     with pytest.raises(ValidationError):
-        tickets.set_priority(conn, people["agent"], tid, "low")
+        tickets.set_classification(conn, people["agent"], tid, "low", "low")
 
 
 def test_requester_transitions(conn, people):
@@ -232,18 +238,20 @@ def test_assignee_must_be_active_staff(conn, people):
         tickets.assign(conn, people["agent"], tid, people["agent2"].id)
 
 
-def test_only_staff_assign_and_prioritise(conn, people):
+def test_only_staff_assign_and_triage(conn, people):
     tid = new(conn, people["req"])
     with pytest.raises(PermissionDenied):
         tickets.assign(conn, people["req"], tid, people["agent"].id)
     with pytest.raises(PermissionDenied):
-        tickets.set_priority(conn, people["req"], tid, "low")
-    tickets.set_priority(conn, people["agent"], tid, "critical")
-    tickets.set_priority(conn, people["agent"], tid, "critical")
+        tickets.set_classification(conn, people["req"], tid, "high", "high")
+    tickets.set_classification(conn, people["agent"], tid, "high", "medium")
+    tickets.set_classification(conn, people["agent"], tid, "high", "medium")  # no change
     with pytest.raises(ValidationError):
-        tickets.set_priority(conn, people["agent"], tid, "asap")
-    changes = [e for e in tickets.list_events(conn, people["agent"], tid) if e["field"] == "priority"]
-    assert [(e["old_value"], e["new_value"]) for e in changes] == [("medium", "critical")]
+        tickets.set_classification(conn, people["agent"], tid, "asap", "high")
+    changes = [(e["field"], e["old_value"], e["new_value"])
+               for e in tickets.list_events(conn, people["agent"], tid) if e["field"] != "created"]
+    assert changes == [("impact", "medium", "high"), ("priority", "medium", "high")]
+    assert tickets.get_ticket(conn, people["agent"], tid)["priority"] == "high"
 
 
 # ---- comments ---------------------------------------------------------------

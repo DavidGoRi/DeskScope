@@ -9,13 +9,16 @@ so requesters cannot probe which ticket numbers exist.
 from __future__ import annotations
 
 import sqlite3
+from collections import defaultdict
 from dataclasses import dataclass
+from datetime import datetime, timezone
 
+from . import sla
 from .db import utcnow
 from .models import (
     CATEGORIES,
     DEVICE_MAX,
-    PRIORITIES,
+    LEVELS,
     STATUSES,
     TEXT_MAX,
     TITLE_MAX,
@@ -24,6 +27,7 @@ from .models import (
     User,
     ValidationError,
     allowed_transitions,
+    priority_for,
 )
 
 _TICKET_SELECT = """
@@ -39,6 +43,7 @@ SORTS = {
     "created": "t.created_at DESC, t.id DESC",
     "priority": "CASE t.priority WHEN 'critical' THEN 0 WHEN 'high' THEN 1"
     " WHEN 'medium' THEN 2 ELSE 3 END, t.updated_at DESC",
+    "sla": "t.created_at",  # re-sorted by due date once the SLA is known
 }
 
 
@@ -48,6 +53,7 @@ class TicketFilter:
     scope: str = "all"
     query: str = ""
     sort: str = "updated"
+    sla_problems: bool = False  # only tickets whose SLA is at risk or breached
 
 
 def _clean_text(value: str, maximum: int, key: str) -> str:
@@ -102,25 +108,25 @@ def create_ticket(
     title: str,
     description: str,
     category: str,
-    priority: str = "medium",
+    impact: str = "medium",
+    urgency: str = "medium",
     device: str | None = None,
 ) -> int:
+    """Open a ticket. The priority comes from the ITIL impact x urgency matrix."""
     title = _clean_text(title, TITLE_MAX, "error.title_invalid")
     description = _clean_text(description, TEXT_MAX, "error.description_invalid")
     if category not in CATEGORIES:
         raise ValidationError("error.category_invalid")
-    if priority not in PRIORITIES:
-        raise ValidationError("error.priority_invalid")
-    # Requesters cannot declare their own ticket critical: triage is the
-    # service desk's job (phase 2 replaces this with the impact/urgency matrix).
-    if not actor.is_staff and priority == "critical":
-        priority = "high"
+    if impact not in LEVELS or urgency not in LEVELS:
+        raise ValidationError("error.classification_invalid")
+    priority = priority_for(impact, urgency)
     device = _clean_device(device)
     now = utcnow()
     cur = conn.execute(
-        "INSERT INTO tickets (title, description, category, priority, status, requester_id,"
-        " device, created_at, updated_at) VALUES (?, ?, ?, ?, 'new', ?, ?, ?, ?)",
-        (title, description, category, priority, actor.id, device, now, now),
+        "INSERT INTO tickets (title, description, category, impact, urgency, priority, status,"
+        " requester_id, device, created_at, updated_at)"
+        " VALUES (?, ?, ?, ?, ?, ?, 'new', ?, ?, ?, ?)",
+        (title, description, category, impact, urgency, priority, actor.id, device, now, now),
     )
     _log(conn, cur.lastrowid, actor.id, "created", None, "new", now)
     conn.commit()
@@ -200,10 +206,14 @@ def change_status(conn: sqlite3.Connection, actor: User, ticket_id: int, new_sta
         resolved_at = resolved_at or now
     else:  # back to work: the previous resolution did not hold
         resolved_at = None
+    # A fix (or a withdrawn ticket) also answers the user: it stops the response clock.
+    first_response = ticket["first_response_at"]
+    if new_status in ("resolved", "closed") and not first_response:
+        first_response = now
     conn.execute(
-        "UPDATE tickets SET status = ?, resolved_at = ?, closed_at = ?, updated_at = ?"
-        " WHERE id = ?",
-        (new_status, resolved_at, closed_at, now, ticket_id),
+        "UPDATE tickets SET status = ?, resolved_at = ?, closed_at = ?, first_response_at = ?,"
+        " updated_at = ? WHERE id = ?",
+        (new_status, resolved_at, closed_at, first_response, now, ticket_id),
     )
     _log(conn, ticket_id, actor.id, "status", old, new_status, now)
     conn.commit()
@@ -242,21 +252,32 @@ def assign(
     conn.commit()
 
 
-def set_priority(conn: sqlite3.Connection, actor: User, ticket_id: int, priority: str) -> None:
+def set_classification(
+    conn: sqlite3.Connection, actor: User, ticket_id: int, impact: str, urgency: str
+) -> None:
+    """Triage: the service desk corrects impact and urgency; the priority follows."""
     if not actor.is_staff:
         raise PermissionDenied("error.forbidden")
-    if priority not in PRIORITIES:
-        raise ValidationError("error.priority_invalid")
+    if impact not in LEVELS or urgency not in LEVELS:
+        raise ValidationError("error.classification_invalid")
     ticket = get_ticket(conn, actor, ticket_id)
     if ticket["status"] == "closed":
         raise ValidationError("error.ticket_closed")
-    if priority == ticket["priority"]:
+    priority = priority_for(impact, urgency)
+    changes = [
+        (field, ticket[field], value)
+        for field, value in (("impact", impact), ("urgency", urgency), ("priority", priority))
+        if ticket[field] != value
+    ]
+    if not changes:
         return
     now = utcnow()
     conn.execute(
-        "UPDATE tickets SET priority = ?, updated_at = ? WHERE id = ?", (priority, now, ticket_id)
+        "UPDATE tickets SET impact = ?, urgency = ?, priority = ?, updated_at = ? WHERE id = ?",
+        (impact, urgency, priority, now, ticket_id),
     )
-    _log(conn, ticket_id, actor.id, "priority", ticket["priority"], priority, now)
+    for field, old, new in changes:
+        _log(conn, ticket_id, actor.id, field, old, new, now)
     conn.commit()
 
 
@@ -276,6 +297,8 @@ def add_comment(
         (ticket_id, actor.id, body, int(internal), now),
     )
     conn.execute("UPDATE tickets SET updated_at = ? WHERE id = ?", (now, ticket_id))
+    if actor.is_staff and not internal and not ticket["first_response_at"]:
+        conn.execute("UPDATE tickets SET first_response_at = ? WHERE id = ?", (now, ticket_id))
     # The requester answering a ticket that waits on them puts it back in the queue.
     if ticket["status"] == "pending" and ticket["requester_id"] == actor.id and not internal:
         conn.execute("UPDATE tickets SET status = 'open' WHERE id = ?", (ticket_id,))
@@ -304,3 +327,70 @@ def list_events(conn: sqlite3.Connection, actor: User, ticket_id: int) -> list[d
         (ticket_id,),
     )
     return [dict(r) for r in rows]
+
+
+# ---- SLA ----------------------------------------------------------------------
+
+
+def status_history(conn: sqlite3.Connection, ticket_ids: list[int]) -> dict[int, list[tuple]]:
+    """(at, old, new) status changes per ticket, oldest first, in one query."""
+    history: dict[int, list[tuple]] = defaultdict(list)
+    if not ticket_ids:
+        return history
+    marks = ",".join("?" * len(ticket_ids))
+    rows = conn.execute(
+        "SELECT ticket_id, created_at, old_value, new_value FROM ticket_events"
+        f" WHERE field = 'status' AND ticket_id IN ({marks}) ORDER BY created_at, id",
+        ticket_ids,
+    )
+    for row in rows:
+        history[row["ticket_id"]].append((row["created_at"], row["old_value"], row["new_value"]))
+    return history
+
+
+def attach_sla(
+    conn: sqlite3.Connection,
+    policy: sla.SlaPolicy,
+    items: list[dict],
+    now: datetime | None = None,
+) -> list[dict]:
+    """Add ``item["sla"]`` (a :class:`sla.TicketSla`) to each ticket."""
+    now = now or datetime.now(timezone.utc)
+    history = status_history(conn, [t["id"] for t in items])
+    for item in items:
+        item["sla"] = sla.evaluate(policy, item, history.get(item["id"], []), now)
+    return items
+
+
+def list_with_sla(
+    conn: sqlite3.Connection,
+    actor: User,
+    flt: TicketFilter,
+    policy: sla.SlaPolicy,
+    now: datetime | None = None,
+) -> list[dict]:
+    """Ticket list with SLA clocks, the SLA filter and the "due first" order applied."""
+    items = attach_sla(conn, policy, list_tickets(conn, actor, flt), now)
+    if flt.sla_problems:
+        items = [
+            t for t in items
+            if t["status"] in ("new", "open", "pending") and t["sla"].worst.is_problem
+        ]
+    if flt.sort == "sla":
+        order = {"breached": 0, "at_risk": 1, "running": 2, "paused": 3, "met": 4}
+        items.sort(
+            key=lambda t: (t["sla"].worst.finished, order[t["sla"].worst.state],
+                           t["sla"].worst.due)
+        )
+    return items
+
+
+def sla_summary(items: list[dict]) -> dict[str, int]:
+    """How many active tickets have an SLA clock at risk or breached."""
+    summary = {"at_risk": 0, "breached": 0}
+    for t in items:
+        if t["status"] in ("new", "open", "pending"):
+            state = t["sla"].worst.state
+            if state in summary:
+                summary[state] += 1
+    return summary

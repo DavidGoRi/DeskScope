@@ -2,12 +2,31 @@
 
 from __future__ import annotations
 
+import re
 import sqlite3
 from datetime import datetime, timezone
 from importlib import resources
 from pathlib import Path
 
-SCHEMA_VERSION = 1
+_MIGRATION_RE = re.compile(r"^(\d{3})_[a-z0-9_]+\.sql$")
+
+
+def _migrations() -> list[tuple[int, str]]:
+    """Numbered SQL files in ``deskscope/migrations``, in order."""
+    folder = resources.files("deskscope").joinpath("migrations")
+    found = []
+    for entry in folder.iterdir():
+        match = _MIGRATION_RE.match(entry.name)
+        if match:
+            found.append((int(match.group(1)), entry.read_text("utf-8")))
+    found.sort()
+    numbers = [n for n, _ in found]
+    if numbers != list(range(1, len(numbers) + 1)):
+        raise RuntimeError(f"migrations must be numbered 1..n without gaps, found {numbers}")
+    return found
+
+
+SCHEMA_VERSION = len(_migrations())
 
 
 def connect(path: str | Path) -> sqlite3.Connection:
@@ -21,18 +40,24 @@ def connect(path: str | Path) -> sqlite3.Connection:
 
 
 def migrate(conn: sqlite3.Connection) -> int:
-    """Bring the schema up to date. Returns the version the database ended at."""
+    """Apply the missing migrations, each in its own transaction. Returns the version."""
     version = conn.execute("PRAGMA user_version").fetchone()[0]
     if version > SCHEMA_VERSION:
         raise RuntimeError(
             f"database schema v{version} is newer than this DeskScope (v{SCHEMA_VERSION})"
         )
-    if version < 1:
-        sql = resources.files("deskscope").joinpath("schema.sql").read_text("utf-8")
-        conn.executescript(sql)
-        conn.execute("PRAGMA user_version = 1")
-        conn.commit()
-        version = 1
+    for number, sql in _migrations():
+        if number <= version:
+            continue
+        # executescript() commits first, so wrap the script and the version bump
+        # in one explicit transaction: a failed migration leaves nothing half-done.
+        try:
+            conn.executescript(f"BEGIN;\n{sql}\nPRAGMA user_version = {number};\nCOMMIT;")
+        except sqlite3.Error:
+            if conn.in_transaction:
+                conn.rollback()
+            raise
+        version = number
     return version
 
 

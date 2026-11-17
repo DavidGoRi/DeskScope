@@ -1,4 +1,4 @@
--- DeskScope schema, version 1.
+-- DeskScope schema, migration 1: initial tables.
 -- Timestamps are ISO 8601 strings in UTC.
 
 CREATE TABLE users (

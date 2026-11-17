@@ -1,4 +1,4 @@
-"""Command line: ``deskscope init | create-user | demo | serve``."""
+"""Command line: ``deskscope init | create-user | demo | sla | serve``."""
 
 from __future__ import annotations
 
@@ -13,12 +13,46 @@ from . import __version__, security, users
 from .db import connect, init_db
 from .models import ROLES, DeskError
 from .seed import DEMO_PASSWORD, DEMO_USERS, seed_demo
+from .sla import WEEKDAY_NAMES, SlaConfigError, SlaPolicy, load_policy
 
 DEFAULT_DB = Path("data") / "deskscope.db"
 
 
 def default_db() -> Path:
     return Path(os.environ.get("DESKSCOPE_DB") or DEFAULT_DB)
+
+
+def sla_path(args: argparse.Namespace) -> Path:
+    """--sla, else $DESKSCOPE_SLA, else sla.json next to the database."""
+    if args.sla:
+        return args.sla
+    env = os.environ.get("DESKSCOPE_SLA")
+    return Path(env) if env else args.db.parent / "sla.json"
+
+
+def load_sla(args: argparse.Namespace) -> SlaPolicy:
+    path = sla_path(args)
+    if args.sla and not path.exists():
+        raise SystemExit(f"SLA file not found: {path}")
+    try:
+        return load_policy(path)
+    except SlaConfigError as exc:
+        raise SystemExit(f"Invalid SLA configuration in {path}: {exc}") from exc
+
+
+def _cmd_sla(args: argparse.Namespace) -> int:
+    policy = load_sla(args)
+    path = sla_path(args)
+    cal = policy.calendar
+    source = path if path.exists() else "built-in defaults"
+    print(f"SLA policy from {source}")
+    days = ", ".join(WEEKDAY_NAMES[d] for d in sorted(cal.weekdays))
+    print(f"  Business hours: {days} {cal.start:%H:%M}-{cal.end:%H:%M} ({cal.tz.key})")
+    print(f"  Holidays: {len(cal.holidays)}   At risk from: {policy.warn_ratio:.0%} of the target")
+    print(f"  {'priority':<10}{'response':>10}{'resolution':>12}  (business minutes)")
+    for priority, values in policy.targets.items():
+        print(f"  {priority:<10}{values['response']:>10}{values['resolution']:>12}")
+    return 0
 
 
 def load_secret_key(db_path: Path) -> str:
@@ -99,7 +133,10 @@ def _cmd_serve(args: argparse.Namespace) -> int:
 
     from .web import create_app
 
-    app = create_app(args.db, load_secret_key(args.db), secure_cookies=args.secure_cookies)
+    app = create_app(
+        args.db, load_secret_key(args.db),
+        secure_cookies=args.secure_cookies, sla_policy=load_sla(args),
+    )
     if args.host not in ("127.0.0.1", "localhost", "::1") and not args.secure_cookies:
         print(
             "Warning: listening on the network without --secure-cookies. "
@@ -117,7 +154,14 @@ def build_parser() -> argparse.ArgumentParser:
         "--db", type=Path, default=None,
         help=f"SQLite database (default: $DESKSCOPE_DB or {DEFAULT_DB})",
     )
+    parser.add_argument(
+        "--sla", type=Path, default=None,
+        help="SLA policy JSON (default: $DESKSCOPE_SLA or sla.json next to the database)",
+    )
     sub = parser.add_subparsers(dest="command", required=True)
+
+    p = sub.add_parser("sla", help="check and show the SLA policy")
+    p.set_defaults(func=_cmd_sla)
 
     p = sub.add_parser("init", help="create or upgrade the database")
     p.set_defaults(func=_cmd_init)

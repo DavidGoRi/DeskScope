@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.2.0] - 2026-11-17
+
+Phase 2: service level agreements.
+
+### Added
+- ITIL classification: impact and urgency on every ticket, with the priority derived from the impact × urgency matrix and a live preview in the form.
+- Triage for technicians (impact and urgency), logged in the history.
+- SLA engine (`sla.py`): business calendar with working days, hours, time zone and holidays; first-response and resolution clocks; the resolution clock pauses while the ticket waits for the user.
+- SLA states (on time, at risk, breached, paused, met) in the ticket list and a service level card with progress bars on each ticket (staff only).
+- "At risk" and "breached" counters, an SLA filter and a "due first" sort order.
+- `sla.json` configuration (`--sla`, `DESKSCOPE_SLA`), `sla.example.json` with Spanish national holidays 2026–2027, and the `deskscope sla` command to validate it.
+- Numbered SQL migrations applied in one transaction each; v0.1 databases are upgraded keeping their priorities and backfilling first-response times.
+
+### Changed
+- Requesters no longer pick a priority directly; they answer the impact and urgency questions.
+- `tzdata` is installed on Windows, which ships without the IANA time zone database.
+
 ## [0.1.0] - 2026-11-17
 
 Phase 1: the core help desk.

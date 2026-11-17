@@ -49,10 +49,37 @@
   </div>
 
   <aside class="ticket-side">
+    {% if user.is_staff %}
+    <section class="card sla-card">
+      <h2>{{ t('sla.title') }}</h2>
+      {% for clock in (ticket.sla.response, ticket.sla.resolution) %}
+      <div class="clock">
+        <div class="clock-head">
+          <span>{{ t('sla.' ~ clock.name) }}</span>
+          <span class="sla sla-{{ clock.state }}">{{ t('sla.state.' ~ clock.state) }}</span>
+        </div>
+        <p class="meta">
+          {% if clock.finished %}{{ t('sla.done') }}: {{ fmt_time(clock.done_at) }} · {{ t('sla.due') }}: {{ fmt_time(clock.due) }}
+          {% else %}{{ t('sla.due') }}: {{ fmt_time(clock.due) }} ·
+            {% if clock.remaining_seconds >= 0 %}{{ t('sla.left', time=fmt_duration(clock.remaining_seconds)) }}
+            {% else %}{{ t('sla.over', time=fmt_duration(clock.remaining_seconds)) }}{% endif %}
+          {% endif %}
+        </p>
+        {% set pct = (clock.used_seconds / clock.target_seconds * 100) if clock.target_seconds else 100 %}
+        <div class="bar bar-{{ clock.state }}"><span class="w{{ ((pct if pct < 100 else 100) / 5)|round|int * 5 }}"></span></div>
+        {% if clock.state == 'paused' %}<p class="meta">{{ t('sla.paused_note') }}</p>{% endif %}
+      </div>
+      {% endfor %}
+      <p class="meta">{{ t('sla.hours_note', start=business_hours.start.strftime('%H:%M'), end=business_hours.end.strftime('%H:%M'), tz=business_hours.tz.key) }}</p>
+    </section>
+    {% endif %}
+
     <section class="card">
       <h2>{{ t('ticket.details') }}</h2>
       <dl class="details">
         <dt>{{ t('col.category') }}</dt><dd>{{ t('category.' ~ ticket.category) }}</dd>
+        <dt>{{ t('col.impact') }}</dt><dd>{{ t('impact.' ~ ticket.impact) }}</dd>
+        <dt>{{ t('col.urgency') }}</dt><dd>{{ t('urgency.' ~ ticket.urgency) }}</dd>
         <dt>{{ t('col.requester') }}</dt><dd>{{ ticket.requester_name }}</dd>
         <dt>{{ t('col.assignee') }}</dt><dd>{{ ticket.assignee_name or t('ticket.unassigned') }}</dd>
         <dt>{{ t('col.device') }}</dt><dd>{{ ticket.device or '—' }}</dd>
@@ -87,14 +114,23 @@
         </label>
         <button type="submit" class="btn">{{ t('ticket.save') }}</button>
       </form>
-      <form method="post" action="/tickets/{{ ticket.id }}/priority" class="stack">
+      <form method="post" action="/tickets/{{ ticket.id }}/classify" class="stack" data-matrix="{{ matrix_json }}">
         <input type="hidden" name="csrf_token" value="{{ csrf }}">
-        <label>{{ t('col.priority') }}
-          <select name="priority">
-            {% for p in PRIORITIES %}<option value="{{ p }}"{% if ticket.priority == p %} selected{% endif %}>{{ t('priority.' ~ p) }}</option>{% endfor %}
+        <p class="label">{{ t('ticket.classify') }}</p>
+        <label>{{ t('col.impact') }}
+          <select name="impact">
+            {% for l in LEVELS %}<option value="{{ l }}"{% if ticket.impact == l %} selected{% endif %}>{{ t('impact.' ~ l) }}</option>{% endfor %}
           </select>
         </label>
+        <label>{{ t('col.urgency') }}
+          <select name="urgency">
+            {% for l in LEVELS %}<option value="{{ l }}"{% if ticket.urgency == l %} selected{% endif %}>{{ t('urgency.' ~ l) }}</option>{% endfor %}
+          </select>
+        </label>
+        <p class="preview">{{ t('new.priority_preview') }} <span data-priority-preview class="prio prio-{{ ticket.priority }}">{{ t('priority.' ~ ticket.priority) }}</span>
+          {% for p in PRIORITIES %}<span hidden data-label="{{ p }}">{{ t('priority.' ~ p) }}</span>{% endfor %}</p>
         <button type="submit" class="btn">{{ t('ticket.save') }}</button>
+        <small class="muted">{{ t('ticket.classify_hint') }}</small>
       </form>
       {% endif %}
     </section>
