@@ -1,4 +1,4 @@
-"""Command line: ``deskscope init | create-user | demo | sla | serve``."""
+"""Command line: ``deskscope init | create-user | demo | sla | import | token | serve``."""
 
 from __future__ import annotations
 
@@ -9,10 +9,10 @@ import os
 import sys
 from pathlib import Path
 
-from . import __version__, security, users
+from . import __version__, integrations, security, tokens, users
 from .db import connect, init_db
 from .models import ROLES, DeskError
-from .seed import DEMO_PASSWORD, DEMO_USERS, seed_demo
+from .seed import DEMO_PASSWORD, DEMO_USERS, seed_demo, seed_integrations
 from .sla import WEEKDAY_NAMES, SlaConfigError, SlaPolicy, load_policy
 
 DEFAULT_DB = Path("data") / "deskscope.db"
@@ -118,13 +118,87 @@ def _cmd_demo(args: argparse.Namespace) -> int:
     conn = connect(db_path)
     try:
         seed_demo(conn, lang=args.lang)
+        imported = seed_integrations(conn, lang=args.lang)
         count = conn.execute("SELECT COUNT(*) FROM tickets").fetchone()[0]
     finally:
         conn.close()
     print(f"Demo database with {len(DEMO_USERS)} users and {count} tickets: {db_path}")
+    for result in imported:
+        print(f"  imported from {result.summary()}")
     print(f"Every demo account uses the password '{DEMO_PASSWORD}':")
     for username, full_name, role in DEMO_USERS:
         print(f"  {username:<15} {role:<10} {full_name}")
+    return 0
+
+
+def _split(value: str) -> list[str]:
+    return [v.strip().lower() for v in value.split(",") if v.strip()]
+
+
+def _cmd_import(args: argparse.Namespace) -> int:
+    init_db(args.db)
+    conn = connect(args.db)
+    try:
+        if args.tool == "pcscope":
+            devices, issues = integrations.load_pcscope_export(args.path)
+            result = integrations.import_pcscope(
+                conn, devices, issues, levels=_split(args.levels), lang=args.lang
+            )
+        elif args.tool == "netscope":
+            result = integrations.import_netscope(
+                conn, integrations.load_netscope_scan(args.path),
+                severities=_split(args.severities),
+                include_new_devices=not args.no_new_devices, lang=args.lang,
+            )
+        else:
+            result = integrations.import_adflow(
+                conn, integrations.load_adflow_run(args.path), lang=args.lang,
+                include_dry_runs=args.include_dry_runs,
+            )
+    except integrations.ImportFormatError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
+    finally:
+        conn.close()
+    print(result.summary())
+    for label, ids in (("opened", result.created), ("updated", result.updated),
+                       ("resolved", result.resolved)):
+        if ids:
+            print(f"  {label}: " + ", ".join(f"#{i}" for i in ids))
+    return 0
+
+
+def _cmd_token(args: argparse.Namespace) -> int:
+    init_db(args.db)
+    conn = connect(args.db)
+    try:
+        if args.action in ("create", "list"):
+            owner = users.get_by_username(conn, args.username)
+            if owner is None:
+                print(f"Error: no user '{args.username}'", file=sys.stderr)
+                return 1
+            if args.action == "create":
+                # The CLI runs with the server's own rights: it acts as the owner.
+                print(tokens.create_token(conn, owner, owner.id, args.name))
+                print("Store it now: it is not shown again.", file=sys.stderr)
+            else:
+                for row in tokens.list_tokens(conn, owner.id):
+                    state = "revoked" if row["revoked_at"] else "active"
+                    print(f"  {row['id']:>4}  {row['prefix']}…  {state:<8} {row['name']}")
+        else:
+            row = conn.execute(
+                "SELECT user_id FROM api_tokens WHERE id = ?", (args.token_id,)
+            ).fetchone()
+            if row is None:
+                print(f"Error: no token {args.token_id}", file=sys.stderr)
+                return 1
+            tokens.revoke_token(conn, users.get_user(conn, row["user_id"]), args.token_id)
+            print(f"Token {args.token_id} revoked.")
+    except DeskError as exc:
+        print(f"Error: {exc.key}", file=sys.stderr)
+        return 1
+    finally:
+        conn.close()
     return 0
 
 
@@ -181,6 +255,37 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--lang", choices=("en", "es"), default="en", help="language of the tickets")
     p.add_argument("--reset", action="store_true", help="replace the database if it exists")
     p.set_defaults(func=_cmd_demo)
+
+    p = sub.add_parser("import", help="open or resolve tickets from PCScope, NetScope or ADFlow")
+    tools = p.add_subparsers(dest="tool", required=True)
+    t = tools.add_parser("pcscope", help="folder written by PCScope.ps1 -ExportCsv")
+    t.add_argument("path", type=Path)
+    t.add_argument("--levels", default="critical",
+                   help="issue levels that open tickets, e.g. critical,warning")
+    t = tools.add_parser("netscope", help="a scan-*.json file or a NetScope output folder")
+    t.add_argument("path", type=Path)
+    t.add_argument("--severities", default="crit", help="finding severities, e.g. crit,warn")
+    t.add_argument("--no-new-devices", action="store_true",
+                   help="do not open tickets for devices seen for the first time")
+    t = tools.add_parser("adflow", help="an ADFlow run folder (or its summary.json)")
+    t.add_argument("path", type=Path)
+    t.add_argument("--include-dry-runs", action="store_true",
+                   help="also import planned changes from dry runs")
+    for t in tools.choices.values():
+        t.add_argument("--lang", choices=("en", "es"), default="en",
+                       help="language of the tickets")
+    p.set_defaults(func=_cmd_import)
+
+    p = sub.add_parser("token", help="API tokens")
+    actions = p.add_subparsers(dest="action", required=True)
+    t = actions.add_parser("create", help="create a token and print it once")
+    t.add_argument("username", help="owner, e.g. 'integrations' for scheduled imports")
+    t.add_argument("--name", required=True, help="what the token is for")
+    t = actions.add_parser("list", help="list a user's tokens")
+    t.add_argument("username")
+    t = actions.add_parser("revoke", help="revoke a token by id")
+    t.add_argument("token_id", type=int)
+    p.set_defaults(func=_cmd_token)
 
     p = sub.add_parser("serve", help="run the web interface")
     p.add_argument("--host", default="127.0.0.1")

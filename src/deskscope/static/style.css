@@ -202,6 +202,21 @@ p.label { font-weight: 600; margin: 0 0 .5rem; }
 .stack small { display: block; margin-top: .5rem; }
 .filters label.check { white-space: nowrap; }
 
+/* Integrations, devices and tokens */
+.source { display: inline-block; margin-left: .4rem; font-size: .72rem; font-weight: 600; letter-spacing: .02em; padding: 0 .4rem; border-radius: 5px; background: var(--accent-soft); color: var(--accent); vertical-align: middle; }
+.badges .source { margin-left: 0; font-size: .82rem; padding: .1rem .55rem; }
+.health { font-weight: 600; }
+.health-critical { color: var(--p-critical); }
+.health-warning { color: var(--p-high); }
+.health-ok, .health-healthy { color: var(--s-resolved); }
+.device-card dd small { display: block; }
+.related { list-style: none; margin: 0; padding: 0; }
+.related li { display: flex; justify-content: space-between; gap: .5rem; padding: .35rem 0; border-bottom: 1px solid var(--border); font-size: .9rem; }
+.related li:last-child { border-bottom: 0; }
+.intro { max-width: 760px; margin: -.25rem 0 1rem; }
+.token-new { border-color: var(--s-resolved); }
+.secret { display: block; padding: .6rem .75rem; border-radius: 8px; background: var(--bg); border: 1px dashed var(--s-resolved); font: .95rem ui-monospace, Consolas, monospace; overflow-wrap: anywhere; user-select: all; }
+
 @media (max-width: 860px) {
   .ticket-layout { grid-template-columns: 1fr; }
   .row { grid-template-columns: 1fr; }

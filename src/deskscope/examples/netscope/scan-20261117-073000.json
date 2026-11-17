@@ -1,0 +1,134 @@
+{
+  "tool": "NetScope",
+  "version": "1.0.0",
+  "started": "2026-11-17T07:30:00+01:00",
+  "finished": "2026-11-17T07:30:11+01:00",
+  "duration_s": 11.2,
+  "network": "10.0.0.0/22",
+  "gateway": "10.0.0.1",
+  "scanner_ip": "10.0.10.5",
+  "platform": "windows",
+  "ports_checked": [
+    21,
+    22,
+    23,
+    80,
+    443,
+    445,
+    3389,
+    5900
+  ],
+  "vendor_db_size": 38000,
+  "devices": [
+    {
+      "ip": "10.0.0.1",
+      "mac": "02:00:5E:10:00:01",
+      "vendor": "Example Networks",
+      "randomized_mac": false,
+      "hostname": "gw.example.com",
+      "is_gateway": true,
+      "is_self": false,
+      "open_ports": [
+        53,
+        80,
+        443
+      ],
+      "evidence": [
+        "ping",
+        "arp"
+      ],
+      "services": {},
+      "type": "router",
+      "findings": []
+    },
+    {
+      "ip": "10.0.60.40",
+      "mac": "02:00:5E:10:60:40",
+      "vendor": "Example Printing",
+      "randomized_mac": false,
+      "hostname": "WH-LABEL01",
+      "is_gateway": false,
+      "is_self": false,
+      "open_ports": [
+        23,
+        80,
+        9100
+      ],
+      "evidence": [
+        "ping",
+        "arp"
+      ],
+      "services": {},
+      "type": "printer",
+      "findings": [
+        {
+          "code": "telnet_open",
+          "severity": "crit",
+          "message": "Telnet (23/tcp) is open: logins travel in clear text."
+        },
+        {
+          "code": "http_only_admin",
+          "severity": "warn",
+          "message": "Web interface only over plain HTTP: its password is not encrypted."
+        }
+      ]
+    },
+    {
+      "ip": "10.0.0.20",
+      "mac": "02:00:5E:10:00:20",
+      "vendor": "Example Storage",
+      "randomized_mac": false,
+      "hostname": "NAS01",
+      "is_gateway": false,
+      "is_self": false,
+      "open_ports": [
+        80,
+        139,
+        443,
+        445
+      ],
+      "evidence": [
+        "ping",
+        "arp"
+      ],
+      "services": {},
+      "type": "nas",
+      "findings": [
+        {
+          "code": "smb1_enabled",
+          "severity": "crit",
+          "message": "SMBv1 is enabled: the old file-sharing protocol WannaCry used."
+        },
+        {
+          "code": "smb_open",
+          "severity": "info",
+          "message": "File sharing (SMB, 445/tcp) is enabled."
+        }
+      ]
+    },
+    {
+      "ip": "10.0.20.77",
+      "mac": "02:00:5E:10:20:77",
+      "vendor": "Example Mobile",
+      "randomized_mac": false,
+      "hostname": null,
+      "is_gateway": false,
+      "is_self": false,
+      "open_ports": [],
+      "evidence": [
+        "ping",
+        "arp"
+      ],
+      "services": {},
+      "type": "phone",
+      "findings": [
+        {
+          "code": "new_device",
+          "severity": "warn",
+          "message": "New device: it was not seen in any earlier scan."
+        }
+      ],
+      "new": true
+    }
+  ]
+}

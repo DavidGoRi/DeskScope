@@ -1,0 +1,68 @@
+﻿{
+  "runId": "20261117-080000-onboarding",
+  "version": "1.0.0",
+  "operation": "Onboarding",
+  "mode": "Live",
+  "provider": "Mock",
+  "source": "demo\\new-hires.csv",
+  "operator": "EXAMPLE\\laura.sanchez",
+  "computer": "IT-PC01",
+  "startedAt": "2026-11-17T08:00:00.0000000+01:00",
+  "finishedAt": "2026-11-17T08:00:04.0000000+01:00",
+  "actions": 14,
+  "counts": {
+    "Created": 2,
+    "Rejected": 1
+  },
+  "results": [
+    {
+      "Row": 2,
+      "EmployeeId": "E1001",
+      "DisplayName": "Paula Costa",
+      "SamAccountName": "paula.costa",
+      "UserPrincipalName": "paula.costa@example.com",
+      "Ou": "OU=HR,OU=Staff,DC=example,DC=com",
+      "Groups": [
+        "GG-HR",
+        "GG-HR-Payroll-RW"
+      ],
+      "Mail": "paula.costa@example.com",
+      "HomeFolder": "\\\\files\\home$\\paula.costa",
+      "WelcomeMessage": "welcome\\paula.costa.eml",
+      "Status": "Created",
+      "Message": "",
+      "Warnings": []
+    },
+    {
+      "Row": 3,
+      "EmployeeId": "E1002",
+      "DisplayName": "Hugo Meyer",
+      "SamAccountName": "hugo.meyer",
+      "UserPrincipalName": "hugo.meyer@example.com",
+      "Ou": "OU=Sales,OU=Staff,DC=example,DC=com",
+      "Groups": "GG-Sales",
+      "Mail": "hugo.meyer@example.com",
+      "HomeFolder": "\\\\files\\home$\\hugo.meyer",
+      "WelcomeMessage": "welcome\\hugo.meyer.eml",
+      "Status": "Created",
+      "Message": "",
+      "Warnings": []
+    },
+    {
+      "Row": 4,
+      "EmployeeId": "E1003",
+      "DisplayName": "Irene Novak",
+      "SamAccountName": null,
+      "UserPrincipalName": null,
+      "Ou": null,
+      "Groups": [],
+      "Mail": null,
+      "HomeFolder": null,
+      "WelcomeMessage": null,
+      "Status": "Rejected",
+      "Message": "StartDate is not a date",
+      "Warnings": []
+    }
+  ],
+  "folder": "output\\runs\\20261117-080000-onboarding"
+}

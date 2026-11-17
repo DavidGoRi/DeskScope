@@ -48,7 +48,7 @@ version = { attr = "deskscope.__version__" }
 where = ["src"]
 
 [tool.setuptools.package-data]
-deskscope = ["migrations/*.sql", "templates/*.html", "static/*"]
+deskscope = ["migrations/*.sql", "templates/*.html", "static/*", "examples/*/*"]
 
 [tool.ruff]
 line-length = 100
@@ -65,6 +65,7 @@ extend-immutable-calls = ["fastapi.Depends", "fastapi.Form", "fastapi.Query"]
 "tests/*" = ["E501"]
 "src/deskscope/i18n.py" = ["E501"]
 "src/deskscope/seed.py" = ["E501"]
+"src/deskscope/integrations.py" = ["E501"]  # ticket templates
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -6,6 +6,7 @@
   <div class="badges">
     <span class="pill status-{{ ticket.status }}">{{ t('status.' ~ ticket.status) }}</span>
     <span class="prio prio-{{ ticket.priority }}">{{ t('priority.' ~ ticket.priority) }}</span>
+    {% if ticket.source != 'web' %}<span class="source source-{{ ticket.source }}">{{ t('source.' ~ ticket.source) }}</span>{% endif %}
   </div>
 </div>
 
@@ -133,6 +134,39 @@
         <small class="muted">{{ t('ticket.classify_hint') }}</small>
       </form>
       {% endif %}
+    </section>
+    {% endif %}
+
+    {% if device %}{% set d = device.data %}
+    <section class="card device-card">
+      <h2>{{ t('device.title') }} · {{ device.name }}</h2>
+      <dl class="details">
+        {% if d.Status %}<dt>{{ t('device.status') }}</dt><dd><span class="health health-{{ d.Status|lower }}">{{ t('health.' ~ d.Status|lower) }}</span>
+          <small class="muted">{{ t('device.issues', critical=d.Critical or 0, warnings=d.Warnings or 0) }}</small></dd>{% endif %}
+        {% if d.Model %}<dt>{{ t('device.model') }}</dt><dd>{{ d.Manufacturer or '' }} {{ d.Model }}{% if d.Type %} · {{ d.Type }}{% endif %}</dd>{% endif %}
+        {% if d.SerialNumber %}<dt>{{ t('device.serial') }}</dt><dd><code>{{ d.SerialNumber }}</code></dd>{% endif %}
+        {% if d.Windows %}<dt>{{ t('device.windows') }}</dt><dd>{{ d.Windows|replace('Microsoft ', '') }} {{ d.Version or '' }} ({{ d.Build }})</dd>{% endif %}
+        {% if d.CPU %}<dt>{{ t('device.cpu') }}</dt><dd>{{ d.CPU }}</dd>{% endif %}
+        {% if d.RamGB %}<dt>{{ t('device.ram') }}</dt><dd>{{ d.RamGB }} GB</dd>{% endif %}
+        {% if d.SystemDriveUsedPercent %}<dt>{{ t('device.disk') }}</dt><dd>{{ t('device.disk_value', used=d.SystemDriveUsedPercent, free=d.SystemDriveFreeGB) }}</dd>{% endif %}
+        {% if d.BitLocker %}<dt>{{ t('device.bitlocker') }}</dt><dd>{{ d.BitLocker }}</dd>{% endif %}
+        {% if d.Antivirus %}<dt>{{ t('device.antivirus') }}</dt><dd>{{ d.Antivirus }}</dd>{% endif %}
+        {% if d.User %}<dt>{{ t('device.user') }}</dt><dd>{{ d.User }}</dd>{% endif %}
+        {% if d.IPv4 %}<dt>{{ t('device.ip') }}</dt><dd>{{ d.IPv4 }}</dd>{% endif %}
+        <dt>{{ t('device.collected') }}</dt><dd>{{ fmt_time(device.collected_at) if device.collected_at else '—' }}</dd>
+      </dl>
+    </section>
+    {% endif %}
+
+    {% if related %}
+    <section class="card">
+      <h2>{{ t('device.other_tickets') }}</h2>
+      <ul class="related">
+        {% for r in related %}
+        <li><a href="/tickets/{{ r.id }}">#{{ r.id }} {{ r.title }}</a>
+          <span class="pill status-{{ r.status }}">{{ t('status.' ~ r.status) }}</span></li>
+        {% endfor %}
+      </ul>
     </section>
     {% endif %}
 

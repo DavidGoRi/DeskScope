@@ -83,6 +83,7 @@ class User:
     email: str
     role: str
     active: bool
+    is_system: bool = False  # integration account: opens tickets, never signs in
 
     @property
     def is_staff(self) -> bool:

@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.3.0] - 2026-11-17
+
+Phase 3: integrations and REST API.
+
+### Added
+- Importers for the rest of the toolkit (`deskscope import pcscope|netscope|adflow`):
+  - PCScope: device sheets from `devices.csv` and one ticket per device and rule from `issues.csv` (critical by default, `--levels` to widen); handles PowerShell's BOM and culture-specific delimiters.
+  - NetScope: tickets for critical findings and for new devices (`--severities`, `--no-new-devices`).
+  - ADFlow: onboarding and offboarding tickets with a checklist from a live run's `summary.json` (`--include-dry-runs`).
+- Reconciliation: stable keys with a partial unique index (one active ticket per key), internal notes when details change, automatic resolution when a problem disappears, new ticket when it comes back; events needing a person are never auto-closed.
+- `integrations` system account that opens those tickets and cannot sign in.
+- Device sheet (PCScope) and "other tickets for this device" on the ticket page, and a source badge on imported tickets.
+- REST API at `/api/v1` (tickets, comments, status, assignment, triage, devices, imports) with OpenAPI at `/api/openapi.json` and Swagger UI at `/api/docs`.
+- API tokens: created under *API tokens* or with `deskscope token create|list|revoke`, shown once, stored as SHA-256, revocable, with last use; bearer only (never the session cookie).
+- Fictitious example exports in `src/deskscope/examples`, imported by `deskscope demo`.
+- CI smoke test calls the real API with a real token.
+
 ## [0.2.0] - 2026-11-17
 
 Phase 2: service level agreements.

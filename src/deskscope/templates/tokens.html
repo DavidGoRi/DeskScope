@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}{{ t('tokens.title') }}{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <h1>{{ t('tokens.title') }}</h1>
+  <a href="/api/docs" class="btn">{{ t('tokens.docs') }}</a>
+</div>
+<p class="muted intro">{{ t('tokens.intro') }}</p>
+
+{% if new_token %}
+<div class="card token-new" role="status">
+  <p><b>{{ t('tokens.created') }}</b></p>
+  <code class="secret">{{ new_token }}</code>
+</div>
+{% endif %}
+
+<div class="ticket-layout">
+  <div class="ticket-main">
+    {% if items %}
+    <div class="tablewrap">
+    <table class="tickets">
+      <thead><tr>
+        <th>{{ t('tokens.name') }}</th><th>{{ t('tokens.prefix') }}</th><th>{{ t('tokens.created_at') }}</th>
+        <th>{{ t('tokens.last_used') }}</th><th></th>
+      </tr></thead>
+      <tbody>
+      {% for tk in items %}
+        <tr{% if tk.revoked_at %} class="inactive"{% endif %}>
+          <td>{{ tk.name }}</td>
+          <td><code>{{ tk.prefix }}…</code></td>
+          <td class="nowrap">{{ fmt_time(tk.created_at) }}</td>
+          <td class="nowrap">{{ fmt_time(tk.last_used_at) if tk.last_used_at else t('tokens.never') }}</td>
+          <td>{% if tk.revoked_at %}{{ t('tokens.revoked') }}{% else %}
+            <form method="post" action="/account/tokens/{{ tk.id }}/revoke" class="inline">
+              <input type="hidden" name="csrf_token" value="{{ csrf }}">
+              <button type="submit" class="btn btn-small">{{ t('tokens.revoke') }}</button>
+            </form>{% endif %}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% else %}
+    <p class="empty">{{ t('tokens.none') }}</p>
+    {% endif %}
+  </div>
+  <aside class="ticket-side">
+    <section class="card">
+      <h2>{{ t('tokens.new') }}</h2>
+      {% if error_key %}<div class="flash flash-error" role="alert">{{ t(error_key, **error_params) }}</div>{% endif %}
+      <form method="post" action="/account/tokens" class="stack">
+        <input type="hidden" name="csrf_token" value="{{ csrf }}">
+        <label>{{ t('tokens.name') }}<input name="name" maxlength="60" required autocomplete="off">
+          <small>{{ t('tokens.name_hint') }}</small></label>
+        <button type="submit" class="btn btn-primary">{{ t('tokens.create') }}</button>
+      </form>
+    </section>
+  </aside>
+</div>
+{% endblock %}

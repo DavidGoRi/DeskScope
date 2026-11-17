@@ -40,3 +40,7 @@ jobs:
             sleep 1
           done
           curl -fsS http://127.0.0.1:8765/login | grep -q "DeskScope"
+          token=$(deskscope --db _smoke/demo.db token create carlos.ruiz --name ci)
+          curl -fsS -H "Authorization: Bearer $token" http://127.0.0.1:8765/api/v1/me | grep -q '"carlos.ruiz"'
+          curl -fsS -H "Authorization: Bearer $token" "http://127.0.0.1:8765/api/v1/tickets?status=any" | grep -q '"source":"pcscope"'
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8765/api/v1/me)" = "401"

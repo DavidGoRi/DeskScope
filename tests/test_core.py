@@ -112,7 +112,7 @@ def test_create_and_read_user(conn):
 
 def test_password_is_not_stored_in_clear(conn):
     users.create_user(conn, "ana", "Ana", "ana@example.com", "requester", PASSWORD)
-    stored = conn.execute("SELECT password_hash FROM users").fetchone()[0]
+    stored = conn.execute("SELECT password_hash FROM users WHERE username = 'ana'").fetchone()[0]
     assert PASSWORD not in stored and stored.startswith("pbkdf2_sha256$")
 
 

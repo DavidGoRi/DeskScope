@@ -18,7 +18,8 @@ from fastapi.templating import Jinja2Templates
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.sessions import SessionMiddleware
 
-from . import __version__, security, tickets, users
+from . import __version__, integrations, security, tickets, tokens, users
+from .api import build_api
 from .db import connect, init_db
 from .i18n import LANGUAGES, pick_language, translate
 from .models import (
@@ -50,6 +51,14 @@ SECURITY_HEADERS = {
     "Referrer-Policy": "same-origin",
     "Cross-Origin-Opener-Policy": "same-origin",
 }
+
+
+DOCS_CSP = (
+    "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;"
+    " style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;"
+    " img-src 'self' data: https://fastapi.tiangolo.com; connect-src 'self';"
+    " frame-ancestors 'none'; base-uri 'none'; object-src 'none'"
+)
 
 
 class LoginRequired(Exception):
@@ -93,13 +102,18 @@ def create_app(
         https_only=secure_cookies,
     )
     app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
+    app.mount("/api", build_api(db_path, policy), name="api")
     templates = Jinja2Templates(directory=HERE / "templates")
     failures: dict[str, deque[float]] = defaultdict(deque)
 
     @app.middleware("http")
     async def add_security_headers(request: Request, call_next):
         response = await call_next(request)
-        for name, value in SECURITY_HEADERS.items():
+        headers = dict(SECURITY_HEADERS)
+        if request.url.path == "/api/docs":
+            # Swagger UI is the only page that loads code from a CDN and runs inline scripts.
+            headers["Content-Security-Policy"] = DOCS_CSP
+        for name, value in headers.items():
             response.headers.setdefault(name, value)
         if request.url.path not in ("/healthz",) and not request.url.path.startswith("/static"):
             response.headers.setdefault("Cache-Control", "no-store")
@@ -397,12 +411,18 @@ def create_app(
     ):
         ticket = tickets.get_ticket(conn, user, ticket_id)
         tickets.attach_sla(conn, policy, [ticket])
+        device = related = None
+        if user.is_staff and ticket["device"]:
+            device = integrations.get_device(conn, ticket["device"])
+            related = tickets.device_tickets(conn, user, ticket["device"], exclude=ticket_id)
         return render(
             request, "ticket.html", user,
             ticket=ticket,
             comments=tickets.list_comments(conn, user, ticket_id),
             events=tickets.list_events(conn, user, ticket_id),
             staff=users.list_staff(conn) if user.is_staff else [],
+            device=device,
+            related=related,
         )
 
     @app.post("/tickets/{ticket_id:int}/comment", dependencies=[Depends(check_csrf)])
@@ -517,5 +537,47 @@ def create_app(
         except ValidationError as exc:
             flash(request, exc.key, "error", **exc.params)
         return RedirectResponse("/admin/users", status_code=303)
+
+    # ---- routes: API tokens ----------------------------------------------
+
+    def tokens_page(request, user, conn, status_code=200, **ctx):
+        return render(
+            request, "tokens.html", user, status_code=status_code,
+            items=tokens.list_tokens(conn, user.id), **ctx,
+        )
+
+    @app.get("/account/tokens")
+    def token_list(
+        request: Request,
+        user: User = Depends(require_user),
+        conn: sqlite3.Connection = Depends(get_conn),
+    ):
+        return tokens_page(request, user, conn)
+
+    @app.post("/account/tokens", dependencies=[Depends(check_csrf)])
+    def token_create(
+        request: Request,
+        name: str = Form(""),
+        user: User = Depends(require_user),
+        conn: sqlite3.Connection = Depends(get_conn),
+    ):
+        try:
+            secret = tokens.create_token(conn, user, user.id, name)
+        except ValidationError as exc:
+            return tokens_page(request, user, conn, status_code=400,
+                               error_key=exc.key, error_params=exc.params)
+        # Shown once in this response only: never stored in the session or a redirect.
+        return tokens_page(request, user, conn, new_token=secret)
+
+    @app.post("/account/tokens/{token_id:int}/revoke", dependencies=[Depends(check_csrf)])
+    def token_revoke(
+        request: Request,
+        token_id: int,
+        user: User = Depends(require_user),
+        conn: sqlite3.Connection = Depends(get_conn),
+    ):
+        tokens.revoke_token(conn, user, token_id)
+        flash(request, "tokens.revoked_ok")
+        return RedirectResponse("/account/tokens", status_code=303)
 
     return app

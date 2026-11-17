@@ -20,7 +20,7 @@ The goal is the loop a real service desk lives in: *the inventory spots a proble
 
 *Leer en [español](README.es.md).*
 
-## What works today (v0.2, phases 1 and 2)
+## What works today (v0.3, phases 1 to 3)
 
 - **Tickets** with category, priority, device, status and a conversation.
 - **Three roles**: employees open and follow *their own* tickets; technicians see and work every ticket; administrators also manage accounts.
@@ -53,6 +53,53 @@ Default targets (business time, all editable):
 | Medium | 4 h | 3 days |
 | Low | 8 h | 5 days |
 - **English and Spanish** interface (browser language or a switch), light and dark mode, usable on a phone.
+
+### Integrations: the toolkit opens its own tickets
+
+| From | What it reads | What happens in DeskScope |
+|---|---|---|
+| **PCScope** | `devices.csv` + `issues.csv` from `PCScope.ps1 -ExportCsv` | A **device sheet** per computer (model, serial, Windows build, disk, BitLocker, antivirus, last user…) shown inside every ticket about that device, with its other tickets. One ticket per device and rule for critical issues (or the levels you choose). |
+| **NetScope** | a `scan-*.json` (or the newest in its folder) | Tickets for critical findings (Telnet open, SMBv1…) and for **devices seen for the first time**. |
+| **ADFlow** | the `summary.json` of a live run | An **onboarding** ticket per account created (groups, mailbox, home folder and a checklist) and an **offboarding** ticket per account disabled. |
+
+Imports are **idempotent and self-healing**:
+
+- each finding has a stable key (`pcscope:OPS-PC04:diskSpace`), and the database refuses two *active* tickets with the same key (partial unique index), so re-running an import never duplicates anything;
+- if the details change (*93 % full → 97 % full*) an internal note is added instead of a new ticket;
+- when a later import no longer reports a problem on a device it inventoried, the ticket is **resolved automatically** with a note; a problem that comes back opens a new ticket, so the history stays honest;
+- events that need a person (a new device on the network, an onboarding) are never closed automatically.
+
+Tickets from tools are opened by a built-in `integrations` system account that can never sign in, and their priority comes from the same impact × urgency matrix (a disabled antivirus is more urgent than a full disk).
+
+```bash
+deskscope import pcscope  \\fileserver\pcscope\export --lang es
+deskscope import netscope C:\NetScope\output
+deskscope import adflow   C:\ADFlow\output\runs\20261117-080000-onboarding
+```
+
+### REST API
+
+Every operation is also available at `/api/v1` (OpenAPI spec at `/api/openapi.json`, interactive docs at `/api/docs`), authenticated with **bearer tokens** that each person creates under *API tokens*:
+
+- tokens are 256-bit random secrets shown **once**; only their SHA-256 is stored, with a short prefix to recognise them, the last time they were used and a revoke button;
+- the API only accepts the `Authorization` header, never the session cookie, so it is not exposed to CSRF;
+- it goes through the same domain functions as the web pages, with the token owner's permissions (an employee's token still only sees that employee's tickets);
+- errors are JSON with a stable code (`{"error": "error.ticket_not_found", "message": "..."}`).
+
+So PCScope's scheduled task can push its results straight to DeskScope:
+
+```powershell
+$headers = @{ Authorization = "Bearer $env:DESKSCOPE_TOKEN" }
+$body = @{
+    devices = @(Import-Csv .\output\export\devices.csv -Delimiter ';')
+    issues  = @(Import-Csv .\output\export\issues.csv -Delimiter ';')
+} | ConvertTo-Json -Depth 4
+Invoke-RestMethod -Method Post -Uri 'https://deskscope.example.com/api/v1/import/pcscope' `
+    -Headers $headers -ContentType 'application/json; charset=utf-8' `
+    -Body ([Text.Encoding]::UTF8.GetBytes($body))
+```
+
+(`deskscope token create integrations --name "PCScope task"` prints a token for the system account.)
 
 ### Security, because a help desk holds sensitive data
 
@@ -100,7 +147,7 @@ Copy [`sla.example.json`](sla.example.json) (Madrid business hours and Spanish n
 
 1. ✅ **Core**: tickets, roles, workflow, comments, audit trail, bilingual UI.
 2. ✅ **SLAs (ITIL)**: priority from an impact × urgency matrix, response and resolution targets in business hours with holidays, pause while waiting for the user, "at risk" warnings.
-3. **Integrations**: PCScope device sheet inside the ticket, tickets opened automatically from PCScope critical findings and NetScope new devices, onboarding tickets from ADFlow, REST API with tokens.
+3. ✅ **Integrations**: PCScope device sheet inside the ticket, self-healing tickets from PCScope issues and NetScope findings, onboarding and offboarding tickets from ADFlow, REST API with tokens.
 4. **Knowledge base and metrics**: turn a solved ticket into an article, suggest articles while typing, MTTR, SLA compliance, top categories and devices, CSV export.
 5. **Release**: tickets by email (IMAP), notifications by email and Telegram, Docker image, live demo and v1.0.0.
 
@@ -112,7 +159,9 @@ ruff check .
 python -m pytest
 ```
 
-164 tests (domain rules, permissions, the business-hours calendar and SLA clocks, schema migrations, web flows, security headers, translations, demo data and CLI) run on Windows and Linux with Python 3.10 and 3.13. CI also starts the real server and checks it answers.
+194 tests (domain rules, permissions, the business-hours calendar and SLA clocks, schema migrations, the three importers, tokens, the REST API, web flows, security headers, translations, demo data and CLI) run on Windows and Linux with Python 3.10 and 3.13. CI also starts the real server and calls the API with a real token.
+
+The fictitious exports used by the demo and the tests are in [`src/deskscope/examples`](src/deskscope/examples): a PCScope CSV export (culture-specific `;` delimiter and BOM, as PowerShell writes it), a NetScope scan and an ADFlow run.
 
 The schema evolves through numbered SQL migrations (`src/deskscope/migrations/`), each applied in one transaction; upgrading a v0.1 database keeps every priority and backfills the first-response times.
 
@@ -121,6 +170,9 @@ src/deskscope/
   models.py     vocabulary, workflow rules, errors
   tickets.py    ticket rules (every function takes the acting user)
   sla.py        business calendar, SLA clocks, sla.json parsing
+  integrations.py  PCScope / NetScope / ADFlow importers and reconciliation
+  tokens.py     API tokens (hashed)
+  api.py        REST API mounted at /api
   migrations/   numbered SQL schema migrations
   users.py      accounts and authentication
   security.py   password hashing, tokens

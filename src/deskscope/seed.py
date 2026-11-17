@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import sqlite3
 from datetime import datetime, timedelta, timezone
+from importlib import resources
+from pathlib import Path
 
 from . import security
 from .models import priority_for
@@ -285,7 +287,7 @@ def seed_demo(
     password: str = DEMO_PASSWORD,
 ) -> dict[str, int]:
     """Fill an empty database with the demo company. Returns the user ids."""
-    if conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]:
+    if conn.execute("SELECT COUNT(*) FROM users WHERE is_system = 0").fetchone()[0]:
         raise RuntimeError("the database is not empty; use a new file for the demo")
     lang = lang if lang in ("en", "es") else "en"
     now = now or datetime.now(timezone.utc)
@@ -379,3 +381,25 @@ def seed_demo(
         )
     conn.commit()
     return ids
+
+
+def examples_dir() -> Path:
+    """Fictitious PCScope, NetScope and ADFlow exports shipped with DeskScope."""
+    return Path(str(resources.files("deskscope").joinpath("examples")))
+
+
+def seed_integrations(conn: sqlite3.Connection, lang: str = "en") -> list:
+    """Run the three importers on the bundled examples, as a real desk would each night."""
+    from . import integrations
+
+    folder = examples_dir()
+    devices, issues = integrations.load_pcscope_export(folder / "pcscope-export")
+    return [
+        integrations.import_pcscope(conn, devices, issues, lang=lang),
+        integrations.import_netscope(
+            conn, integrations.load_netscope_scan(folder / "netscope"), lang=lang
+        ),
+        integrations.import_adflow(
+            conn, integrations.load_adflow_run(folder / "adflow-run"), lang=lang
+        ),
+    ]

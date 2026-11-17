@@ -25,6 +25,7 @@ def _to_user(row: sqlite3.Row) -> User:
         email=row["email"],
         role=row["role"],
         active=bool(row["active"]),
+        is_system=bool(row["is_system"]),
     )
 
 
@@ -77,23 +78,38 @@ def authenticate(conn: sqlite3.Connection, username: str, password: str) -> User
     if row is None:
         security.verify_password(password, _DUMMY_HASH)
         return None
+    if row["is_system"]:
+        security.verify_password(password, _DUMMY_HASH)
+        return None
     if not security.verify_password(password, row["password_hash"]) or not row["active"]:
         return None
     return _to_user(row)
 
 
 def list_users(conn: sqlite3.Connection, role: str | None = None) -> list[User]:
+    """People with an account (system accounts are left out)."""
     if role:
-        rows = conn.execute("SELECT * FROM users WHERE role = ? ORDER BY full_name", (role,))
+        rows = conn.execute(
+            "SELECT * FROM users WHERE role = ? AND is_system = 0 ORDER BY full_name", (role,)
+        )
     else:
-        rows = conn.execute("SELECT * FROM users ORDER BY full_name")
+        rows = conn.execute("SELECT * FROM users WHERE is_system = 0 ORDER BY full_name")
     return [_to_user(r) for r in rows]
+
+
+def system_user(conn: sqlite3.Connection) -> User:
+    """The account integrations act as (created by migration 3)."""
+    row = conn.execute("SELECT * FROM users WHERE username = 'integrations'").fetchone()
+    if row is None or not row["is_system"]:
+        raise NotFound("error.user_not_found")
+    return _to_user(row)
 
 
 def list_staff(conn: sqlite3.Connection) -> list[User]:
     """Active agents and admins: the people a ticket can be assigned to."""
     rows = conn.execute(
-        "SELECT * FROM users WHERE role IN ('agent', 'admin') AND active = 1 ORDER BY full_name"
+        "SELECT * FROM users WHERE role IN ('agent', 'admin') AND active = 1 AND is_system = 0"
+        " ORDER BY full_name"
     )
     return [_to_user(r) for r in rows]
 
@@ -102,6 +118,8 @@ def set_active(conn: sqlite3.Connection, actor: User, user_id: int, active: bool
     if not actor.is_admin:
         raise PermissionDenied("error.forbidden")
     target = get_user(conn, user_id)
+    if target.is_system:
+        raise PermissionDenied("error.forbidden")
     if target.id == actor.id and not active:
         raise ValidationError("error.cannot_disable_self")
     conn.execute("UPDATE users SET active = ? WHERE id = ?", (int(active), target.id))

@@ -49,7 +49,8 @@
     <tr>
       <td class="num"><a href="/tickets/{{ it.id }}">#{{ it.id }}</a></td>
       <td class="title"><a href="/tickets/{{ it.id }}">{{ it.title }}</a>
-        {% if it.device %}<span class="device">{{ it.device }}</span>{% endif %}</td>
+        {% if it.device %}<span class="device">{{ it.device }}</span>{% endif %}
+        {% if it.source != 'web' %}<span class="source source-{{ it.source }}">{{ t('source.' ~ it.source) }}</span>{% endif %}</td>
       <td><span class="pill status-{{ it.status }}">{{ t('status.' ~ it.status) }}</span></td>
       <td><span class="prio prio-{{ it.priority }}">{{ t('priority.' ~ it.priority) }}</span></td>
       <td>{{ t('category.' ~ it.category) }}</td>

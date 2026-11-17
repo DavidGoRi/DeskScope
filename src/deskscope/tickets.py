@@ -111,6 +111,9 @@ def create_ticket(
     impact: str = "medium",
     urgency: str = "medium",
     device: str | None = None,
+    *,
+    source: str = "web",
+    external_key: str | None = None,
 ) -> int:
     """Open a ticket. The priority comes from the ITIL impact x urgency matrix."""
     title = _clean_text(title, TITLE_MAX, "error.title_invalid")
@@ -124,9 +127,10 @@ def create_ticket(
     now = utcnow()
     cur = conn.execute(
         "INSERT INTO tickets (title, description, category, impact, urgency, priority, status,"
-        " requester_id, device, created_at, updated_at)"
-        " VALUES (?, ?, ?, ?, ?, ?, 'new', ?, ?, ?, ?)",
-        (title, description, category, impact, urgency, priority, actor.id, device, now, now),
+        " requester_id, device, source, external_key, created_at, updated_at)"
+        " VALUES (?, ?, ?, ?, ?, ?, 'new', ?, ?, ?, ?, ?, ?)",
+        (title, description, category, impact, urgency, priority, actor.id, device, source,
+         external_key, now, now),
     )
     _log(conn, cur.lastrowid, actor.id, "created", None, "new", now)
     conn.commit()
@@ -394,3 +398,16 @@ def sla_summary(items: list[dict]) -> dict[str, int]:
             if state in summary:
                 summary[state] += 1
     return summary
+
+
+def device_tickets(
+    conn: sqlite3.Connection, actor: User, device: str, exclude: int | None = None, limit: int = 8
+) -> list[dict]:
+    """Recent tickets about the same device (staff only), newest first."""
+    if not actor.is_staff:
+        return []
+    rows = conn.execute(
+        _TICKET_SELECT + " WHERE t.device = ? AND t.id != ? ORDER BY t.created_at DESC LIMIT ?",
+        (device.upper(), exclude or 0, limit),
+    )
+    return [dict(r) for r in rows]

@@ -1,0 +1,7 @@
+﻿"Device";"Level";"Rule";"Issue"
+"OPS-PC04";"critical";"diskSpace";"Drive C: is 93% full (16.4 GB free)"
+"HR-PC02";"critical";"antivirus";"No active antivirus"
+"SAL-LT05";"critical";"windowsUpdates";"No Windows update installed for 69 days"
+"SAL-LT05";"warning";"laptopEncryption";"Laptop system drive is not encrypted (BitLocker off)"
+"FIN-LT03";"warning";"batteryHealth";"Battery holds 61% of its design capacity"
+"HR-PC02";"info";"memory";"Only 8 GB of RAM"

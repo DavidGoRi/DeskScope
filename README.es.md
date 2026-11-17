@@ -6,7 +6,7 @@ DeskScope es la cuarta pieza de un pequeño kit de sistemas: [PCScope](https://g
 
 *Read in [English](README.md).*
 
-## Qué hace ya (v0.2, fases 1 y 2)
+## Qué hace ya (v0.3, fases 1 a 3)
 
 - **Tickets** con categoría, prioridad, equipo, estado y conversación.
 - **Tres roles**: el empleado abre y sigue *sus* tickets; el técnico ve y gestiona todos; el administrador además gestiona las cuentas.
@@ -30,6 +30,36 @@ DeskScope es la cuarta pieza de un pequeño kit de sistemas: [PCScope](https://g
 - **En la ficha:** barras de progreso para los dos relojes.
 
 `sla.example.json` trae el horario de Madrid y los festivos nacionales de 2026 y 2027. `deskscope sla` comprueba el archivo y muestra la política que se está usando.
+
+### Integraciones: las herramientas abren sus propios tickets
+
+- **PCScope** (`devices.csv` e `issues.csv` de `-ExportCsv`):
+  - una ficha por equipo (modelo, número de serie, versión de Windows, disco, BitLocker, antivirus, último usuario…), visible dentro de cada ticket de ese equipo junto con sus otros tickets;
+  - un ticket por equipo y regla para los avisos críticos, o para los niveles que elijas.
+- **NetScope** (`scan-*.json`): tickets para los hallazgos críticos (Telnet abierto, SMBv1…) y para los dispositivos que aparecen por primera vez.
+- **ADFlow** (`summary.json` de una ejecución real): un ticket de alta por cada cuenta creada, con sus grupos, buzón, carpeta y lista de tareas, y un ticket de baja por cada cuenta desactivada.
+
+Las importaciones se pueden repetir sin efectos secundarios y se corrigen solas:
+- cada hallazgo tiene una clave estable y la base de datos no admite dos tickets activos con la misma;
+- si cambia el detalle (93 % → 97 %), se añade una nota interna en lugar de abrir otro ticket;
+- cuando el problema desaparece, el ticket se resuelve automáticamente con una nota;
+- si el problema vuelve, se abre un ticket nuevo;
+- lo que necesita a una persona (un dispositivo nuevo, un alta) nunca se cierra solo.
+
+```bash
+deskscope import pcscope  \\servidor\pcscope\export --lang es
+deskscope import netscope C:\NetScope\output --lang es
+deskscope import adflow   C:\ADFlow\output\runs\<ejecución> --lang es
+```
+
+### API REST
+
+Todo está disponible en `/api/v1`, con la documentación interactiva en `/api/docs`.
+- **Tokens:** se crean en *Tokens de API*. Se muestran una sola vez y solo se guarda su SHA-256.
+- **CSRF:** la API solo acepta la cabecera `Authorization`, nunca la cookie de sesión, así que no le afecta.
+- **Permisos:** usa los mismos permisos que la web; el token de un empleado solo ve sus tickets.
+
+Así, la tarea programada de PCScope puede enviar sus resultados directamente (hay un ejemplo con `Invoke-RestMethod` en el [README en inglés](README.md#rest-api)).
 
 ### Seguridad
 
@@ -60,11 +90,7 @@ Todas las cuentas de la demo tienen la contraseña `deskscope-demo`:
 
 1. ✅ **Núcleo:** tickets, roles, flujo, comentarios, historial e interfaz bilingüe.
 2. ✅ **SLA (ITIL):** matriz impacto × urgencia, plazos en horario laboral con festivos y pausa mientras se espera al usuario.
-3. **Integraciones:**
-   - ficha de PCScope en el ticket;
-   - tickets automáticos desde PCScope y NetScope;
-   - altas de ADFlow;
-   - API REST.
+3. ✅ **Integraciones:** ficha de PCScope en el ticket, tickets que se abren y se resuelven solos desde PCScope y NetScope, altas y bajas de ADFlow, y API REST con tokens.
 4. **Base de conocimiento y métricas:** tiempo medio de resolución, % de SLA cumplido y exportación a CSV.
 5. **Publicación:** correo, Telegram, Docker, demo en vivo y v1.0.0.
 
