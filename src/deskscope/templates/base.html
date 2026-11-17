@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="{{ lang }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ t('tickets.title') }}{% endblock %} · DeskScope</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/tickets">
+      <img src="/static/favicon.svg" alt="" width="22" height="22">
+      <span>DeskScope</span>
+      <small>{{ t('app.tagline') }}</small>
+    </a>
+    {% if user %}
+    <nav class="mainnav">
+      <a href="/tickets">{{ t('nav.tickets') }}</a>
+      <a href="/tickets/new" class="btn btn-primary">{{ t('nav.new') }}</a>
+      {% if user.is_admin %}<a href="/admin/users">{{ t('nav.users') }}</a>{% endif %}
+    </nav>
+    {% endif %}
+    <div class="session">
+      <a class="lang" href="/lang/{{ other_lang }}?next={{ request.url.path|urlencode }}">{{ t('nav.language') }}</a>
+      {% if user %}
+      <span class="who">{{ user.full_name }} <span class="role">{{ t('role.' ~ user.role) }}</span></span>
+      <form method="post" action="/logout" class="inline">
+        <input type="hidden" name="csrf_token" value="{{ csrf }}">
+        <button type="submit" class="btn btn-ghost">{{ t('nav.logout') }}</button>
+      </form>
+      {% endif %}
+    </div>
+  </header>
+
+  <main class="page">
+    {% for m in messages %}
+    <div class="flash flash-{{ m.kind }}" role="status">{{ t(m.key, **m.params) }}</div>
+    {% endfor %}
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="footer">DeskScope v{{ version }}</footer>
+</body>
+</html>

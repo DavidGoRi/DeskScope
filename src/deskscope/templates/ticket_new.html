@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}{{ t('new.title') }}{% endblock %}
+{% block content %}
+<section class="card form-card">
+  <h1>{{ t('new.title') }}</h1>
+  {% if error_key %}<div class="flash flash-error" role="alert">{{ t(error_key, **error_params) }}</div>{% endif %}
+  <form method="post" action="/tickets/new">
+    <input type="hidden" name="csrf_token" value="{{ csrf }}">
+    <label>{{ t('new.title_label') }}
+      <input name="title" value="{{ form.title or '' }}" maxlength="120" required>
+      <small>{{ t('new.title_hint') }}</small>
+    </label>
+    <div class="row">
+      <label>{{ t('col.category') }}
+        <select name="category">
+          {% for c in CATEGORIES %}<option value="{{ c }}"{% if form.category == c %} selected{% endif %}>{{ t('category.' ~ c) }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>{{ t('col.priority') }}
+        <select name="priority">
+          {% for p in PRIORITIES %}{% if user.is_staff or p != 'critical' %}
+          <option value="{{ p }}"{% if form.priority == p %} selected{% endif %}>{{ t('priority.' ~ p) }}</option>
+          {% endif %}{% endfor %}
+        </select>
+      </label>
+      <label>{{ t('new.device') }}
+        <input name="device" value="{{ form.device or '' }}" maxlength="64" placeholder="FIN-LT03">
+        <small>{{ t('new.device_hint') }}</small>
+      </label>
+    </div>
+    <label>{{ t('new.description') }}
+      <textarea name="description" rows="8" maxlength="5000" required>{{ form.description or '' }}</textarea>
+      <small>{{ t('new.description_hint') }}</small>
+    </label>
+    <button type="submit" class="btn btn-primary">{{ t('new.submit') }}</button>
+  </form>
+</section>
+{% endblock %}

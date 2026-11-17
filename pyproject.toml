@@ -1,0 +1,74 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "deskscope"
+dynamic = ["version"]
+description = "Lightweight IT help desk: tickets, roles, SLAs and a knowledge base, built to plug into PCScope, NetScope and ADFlow."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "DavidGoRi" }]
+keywords = ["helpdesk", "ticketing", "itil", "service-desk", "it-support", "sysadmin"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Web Environment",
+    "Framework :: FastAPI",
+    "Intended Audience :: System Administrators",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Topic :: Office/Business",
+    "Topic :: System :: Systems Administration",
+]
+dependencies = [
+    "fastapi>=0.110",
+    "uvicorn>=0.29",
+    "jinja2>=3.1",
+    "python-multipart>=0.0.9",
+    "itsdangerous>=2.1",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "httpx>=0.27", "ruff>=0.6"]
+
+[project.scripts]
+deskscope = "deskscope.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/DavidGoRi/DeskScope"
+
+[tool.setuptools.dynamic]
+version = { attr = "deskscope.__version__" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+deskscope = ["schema.sql", "templates/*.html", "static/*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM"]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI declares dependencies and form fields as default arguments.
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Form", "fastapi.Query"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["E501"]
+"src/deskscope/i18n.py" = ["E501"]
+"src/deskscope/seed.py" = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-q"
+filterwarnings = [
+    # Starlette's test client still works with httpx; the replacement is not settled yet.
+    "ignore:Using `httpx` with `starlette.testclient` is deprecated",
+]

@@ -1,0 +1,24 @@
+# Local database, secret key and uploads: real tickets may contain names,
+# devices and passwords people paste by mistake. Never commit them.
+data/
+*.db
+*.db-journal
+secret.key
+
+# Python
+.venv/
+__pycache__/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+build/
+dist/
+
+# Demo build output (generated in CI)
+_site/
+
+# Editors and OS
+.vscode/
+*.swp
+Thumbs.db
+desktop.ini

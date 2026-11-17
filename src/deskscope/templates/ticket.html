@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}#{{ ticket.id }} {{ ticket.title }}{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <h1><span class="muted">#{{ ticket.id }}</span> {{ ticket.title }}</h1>
+  <div class="badges">
+    <span class="pill status-{{ ticket.status }}">{{ t('status.' ~ ticket.status) }}</span>
+    <span class="prio prio-{{ ticket.priority }}">{{ t('priority.' ~ ticket.priority) }}</span>
+  </div>
+</div>
+
+<div class="ticket-layout">
+  <div class="ticket-main">
+    <section class="card">
+      <h2>{{ t('ticket.description') }}</h2>
+      <p class="meta">{{ ticket.requester_name }} · {{ fmt_time(ticket.created_at) }}</p>
+      <div class="text">{{ ticket.description }}</div>
+    </section>
+
+    <section class="card">
+      <h2>{{ t('ticket.conversation') }}</h2>
+      {% for c in comments %}
+      <article class="comment{% if c.internal %} internal{% endif %}{% if c.author_role != 'requester' %} from-staff{% endif %}">
+        <p class="meta"><b>{{ c.author_name }}</b> · {{ fmt_time(c.created_at) }}
+          {% if c.internal %}<span class="tag">{{ t('ticket.internal_badge') }}</span>{% endif %}</p>
+        <div class="text">{{ c.body }}</div>
+      </article>
+      {% else %}
+      <p class="muted">{{ t('ticket.no_comments') }}</p>
+      {% endfor %}
+
+      {% if ticket.status != 'closed' %}
+      <form method="post" action="/tickets/{{ ticket.id }}/comment" class="comment-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf }}">
+        <label>{{ t('ticket.comment') }}
+          <textarea name="body" rows="4" maxlength="5000" required></textarea>
+        </label>
+        <div class="form-foot">
+          {% if user.is_staff %}
+          <label class="check"><input type="checkbox" name="internal"> {{ t('ticket.internal') }}</label>
+          {% endif %}
+          <button type="submit" class="btn btn-primary">{{ t('ticket.send') }}</button>
+        </div>
+      </form>
+      {% else %}
+      <p class="note">{{ t('ticket.closed_note') }}</p>
+      {% endif %}
+    </section>
+  </div>
+
+  <aside class="ticket-side">
+    <section class="card">
+      <h2>{{ t('ticket.details') }}</h2>
+      <dl class="details">
+        <dt>{{ t('col.category') }}</dt><dd>{{ t('category.' ~ ticket.category) }}</dd>
+        <dt>{{ t('col.requester') }}</dt><dd>{{ ticket.requester_name }}</dd>
+        <dt>{{ t('col.assignee') }}</dt><dd>{{ ticket.assignee_name or t('ticket.unassigned') }}</dd>
+        <dt>{{ t('col.device') }}</dt><dd>{{ ticket.device or '—' }}</dd>
+        <dt>{{ t('col.created') }}</dt><dd>{{ fmt_time(ticket.created_at) }}</dd>
+        {% if ticket.resolved_at %}<dt>{{ t('ticket.resolved_at') }}</dt><dd>{{ fmt_time(ticket.resolved_at) }}</dd>{% endif %}
+        {% if ticket.closed_at %}<dt>{{ t('ticket.closed_at') }}</dt><dd>{{ fmt_time(ticket.closed_at) }}</dd>{% endif %}
+      </dl>
+    </section>
+
+    {% if ticket.transitions or (user.is_staff and ticket.status != 'closed') %}
+    <section class="card">
+      <h2>{{ t('ticket.actions') }}</h2>
+      {% if ticket.transitions %}
+      <div class="actions">
+        {% for s in ticket.transitions %}
+        <form method="post" action="/tickets/{{ ticket.id }}/status" class="inline">
+          <input type="hidden" name="csrf_token" value="{{ csrf }}">
+          <input type="hidden" name="status" value="{{ s }}">
+          <button type="submit" class="btn btn-status-{{ s }}">{{ t('action.' ~ s) }}</button>
+        </form>
+        {% endfor %}
+      </div>
+      {% endif %}
+      {% if user.is_staff and ticket.status != 'closed' %}
+      <form method="post" action="/tickets/{{ ticket.id }}/assign" class="stack">
+        <input type="hidden" name="csrf_token" value="{{ csrf }}">
+        <label>{{ t('ticket.assign') }}
+          <select name="assignee">
+            <option value="">{{ t('ticket.unassigned') }}</option>
+            {% for s in staff %}<option value="{{ s.id }}"{% if ticket.assignee_id == s.id %} selected{% endif %}>{{ s.full_name }}</option>{% endfor %}
+          </select>
+        </label>
+        <button type="submit" class="btn">{{ t('ticket.save') }}</button>
+      </form>
+      <form method="post" action="/tickets/{{ ticket.id }}/priority" class="stack">
+        <input type="hidden" name="csrf_token" value="{{ csrf }}">
+        <label>{{ t('col.priority') }}
+          <select name="priority">
+            {% for p in PRIORITIES %}<option value="{{ p }}"{% if ticket.priority == p %} selected{% endif %}>{{ t('priority.' ~ p) }}</option>{% endfor %}
+          </select>
+        </label>
+        <button type="submit" class="btn">{{ t('ticket.save') }}</button>
+      </form>
+      {% endif %}
+    </section>
+    {% endif %}
+
+    <section class="card">
+      <h2>{{ t('ticket.history') }}</h2>
+      <ol class="history">
+        {% for e in events %}
+        <li><span class="muted">{{ fmt_time(e.created_at) }}</span>
+          <b>{{ e.actor_name or t('event.system') }}</b> {{ event_text(e) }}</li>
+        {% endfor %}
+      </ol>
+    </section>
+  </aside>
+</div>
+{% endblock %}

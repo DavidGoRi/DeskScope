@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}{{ t('error.title') }}{% endblock %}
+{% block content %}
+<section class="card narrow">
+  <h1>{{ t('error.title') }}</h1>
+  <p>{{ t(error_key, **error_params) }}</p>
+  <p><a href="/tickets">{{ t('error.back') }}</a></p>
+</section>
+{% endblock %}

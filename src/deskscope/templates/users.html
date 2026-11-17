@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}{{ t('users.title') }}{% endblock %}
+{% block content %}
+<div class="pagehead"><h1>{{ t('users.title') }}</h1></div>
+
+<div class="ticket-layout">
+  <div class="ticket-main">
+    <div class="tablewrap">
+    <table class="tickets">
+      <thead><tr>
+        <th>{{ t('login.username') }}</th><th>{{ t('users.full_name') }}</th><th>{{ t('users.email') }}</th>
+        <th>{{ t('users.role') }}</th><th>{{ t('users.status') }}</th><th></th>
+      </tr></thead>
+      <tbody>
+      {% for p in people %}
+        <tr{% if not p.active %} class="inactive"{% endif %}>
+          <td>{{ p.username }}</td><td>{{ p.full_name }}</td><td>{{ p.email }}</td>
+          <td>{{ t('role.' ~ p.role) }}</td>
+          <td>{{ t('users.active') if p.active else t('users.inactive') }}</td>
+          <td>{% if p.id != user.id %}
+            <form method="post" action="/admin/users/{{ p.id }}/active" class="inline">
+              <input type="hidden" name="csrf_token" value="{{ csrf }}">
+              <input type="hidden" name="active" value="{{ '0' if p.active else '1' }}">
+              <button type="submit" class="btn btn-small">{{ t('users.disable') if p.active else t('users.enable') }}</button>
+            </form>{% endif %}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </div>
+  <aside class="ticket-side">
+    <section class="card">
+      <h2>{{ t('users.new') }}</h2>
+      {% if error_key %}<div class="flash flash-error" role="alert">{{ t(error_key, **error_params) }}</div>{% endif %}
+      <form method="post" action="/admin/users" class="stack">
+        <input type="hidden" name="csrf_token" value="{{ csrf }}">
+        <label>{{ t('login.username') }}<input name="username" value="{{ form.username or '' }}" required autocomplete="off"></label>
+        <label>{{ t('users.full_name') }}<input name="full_name" value="{{ form.full_name or '' }}" required></label>
+        <label>{{ t('users.email') }}<input name="email" type="email" value="{{ form.email or '' }}" required></label>
+        <label>{{ t('users.role') }}
+          <select name="role">
+            {% for r in ROLES %}<option value="{{ r }}"{% if form.role == r %} selected{% endif %}>{{ t('role.' ~ r) }}</option>{% endfor %}
+          </select>
+        </label>
+        <label>{{ t('login.password') }}<input name="password" type="password" minlength="10" required autocomplete="new-password">
+          <small>{{ t('users.password_hint') }}</small></label>
+        <button type="submit" class="btn btn-primary">{{ t('users.create') }}</button>
+      </form>
+    </section>
+  </aside>
+</div>
+{% endblock %}

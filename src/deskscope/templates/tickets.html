@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="pagehead">
+  <h1>{{ t('tickets.title') }}</h1>
+  <ul class="counts">
+    {% for s in STATUSES %}
+    <li><a href="/tickets?status={{ s }}&scope={{ flt.scope }}" class="pill status-{{ s }}{% if flt.status == s %} is-current{% endif %}">
+      {{ t('status.' ~ s) }} <b>{{ counts[s] }}</b></a></li>
+    {% endfor %}
+  </ul>
+</div>
+
+<form method="get" action="/tickets" class="filters">
+  <input type="search" name="q" value="{{ flt.query }}" placeholder="{{ t('tickets.search') }}" aria-label="{{ t('tickets.search') }}">
+  <select name="status" aria-label="{{ t('col.status') }}">
+    <option value="active"{% if flt.status == 'active' %} selected{% endif %}>{{ t('filter.active') }}</option>
+    <option value="any"{% if flt.status == 'any' %} selected{% endif %}>{{ t('filter.any') }}</option>
+    {% for s in STATUSES %}<option value="{{ s }}"{% if flt.status == s %} selected{% endif %}>{{ t('status.' ~ s) }}</option>{% endfor %}
+  </select>
+  {% if user.is_staff %}
+  <select name="scope" aria-label="{{ t('scope.all') }}">
+    {% for s in scopes %}<option value="{{ s }}"{% if flt.scope == s %} selected{% endif %}>{{ t('scope.' ~ s) }}</option>{% endfor %}
+  </select>
+  {% endif %}
+  <select name="sort" aria-label="{{ t('sort.updated') }}">
+    {% for s in sorts %}<option value="{{ s }}"{% if flt.sort == s %} selected{% endif %}>{{ t('sort.' ~ s) }}</option>{% endfor %}
+  </select>
+  <button type="submit" class="btn">{{ t('tickets.filter') }}</button>
+</form>
+
+{% if items %}
+<div class="tablewrap">
+<table class="tickets">
+  <thead><tr>
+    <th>{{ t('col.id') }}</th><th>{{ t('col.title') }}</th><th>{{ t('col.status') }}</th>
+    <th>{{ t('col.priority') }}</th><th>{{ t('col.category') }}</th>
+    {% if user.is_staff %}<th>{{ t('col.requester') }}</th>{% endif %}
+    <th>{{ t('col.assignee') }}</th><th>{{ t('col.updated') }}</th>
+  </tr></thead>
+  <tbody>
+  {% for it in items %}
+    <tr>
+      <td class="num"><a href="/tickets/{{ it.id }}">#{{ it.id }}</a></td>
+      <td class="title"><a href="/tickets/{{ it.id }}">{{ it.title }}</a>
+        {% if it.device %}<span class="device">{{ it.device }}</span>{% endif %}</td>
+      <td><span class="pill status-{{ it.status }}">{{ t('status.' ~ it.status) }}</span></td>
+      <td><span class="prio prio-{{ it.priority }}">{{ t('priority.' ~ it.priority) }}</span></td>
+      <td>{{ t('category.' ~ it.category) }}</td>
+      {% if user.is_staff %}<td>{{ it.requester_name }}</td>{% endif %}
+      <td>{{ it.assignee_name or '—' }}</td>
+      <td class="muted nowrap">{{ fmt_time(it.updated_at) }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<p class="empty">{{ t('tickets.empty') }}</p>
+{% endif %}
+{% endblock %}
