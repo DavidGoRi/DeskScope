@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.1.0] - 2026-11-18
+
+### Added
+- HardenScope integration: `deskscope import hardenscope <fleet-*.json or folder> --severities critical,high` and `POST /api/v1/import/hardenscope?severities=...` (what `HardenScope.ps1 -DeskScopeUrl` calls). One ticket per computer and failed security check with the risk, the fix and the PowerShell command; checks fixed in a later audit are resolved automatically, and computers that could not be audited keep their tickets.
+- The demo includes a fictitious HardenScope fleet report of the same nine computers.
+
+### Changed
+- Migration 6 rebuilds the tickets table again to accept the new "hardenscope" source.
+
 ## [1.0.0] - 2026-11-18
 
 Phase 5: email, Telegram, Docker and the live demo. First stable release.

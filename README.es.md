@@ -41,6 +41,7 @@ Reproduce el ciclo de un departamento de soporte real: *el inventario detecta un
 | **PCScope** | Crea una ficha por equipo, visible dentro de sus tickets, y un ticket por cada aviso crítico. |
 | **NetScope** | Abre tickets por hallazgos críticos (Telnet, SMBv1…) y por cada dispositivo nuevo. |
 | **ADFlow** | Abre un ticket de alta o de baja por persona, con su lista de tareas. |
+| **HardenScope** | Abre un ticket por equipo y comprobación de seguridad fallida (críticas por defecto), con el riesgo, el arreglo y el comando de PowerShell. |
 
 Las importaciones se pueden repetir sin peligro:
 - no duplican tickets;

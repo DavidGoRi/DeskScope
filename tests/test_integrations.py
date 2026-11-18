@@ -1,4 +1,4 @@
-"""Phase 3: PCScope / NetScope / ADFlow imports, device sheets, API tokens and the REST API."""
+"""Phase 3: PCScope / NetScope / ADFlow / HardenScope imports, device sheets, API tokens and the REST API."""
 
 from __future__ import annotations
 
@@ -13,9 +13,11 @@ from deskscope import cli, integrations, tickets, tokens, users
 from deskscope.integrations import (
     ImportFormatError,
     import_adflow,
+    import_hardenscope,
     import_netscope,
     import_pcscope,
     load_adflow_run,
+    load_hardenscope_fleet,
     load_netscope_scan,
     load_pcscope_export,
     read_csv,
@@ -39,6 +41,11 @@ def scan():
 @pytest.fixture
 def run():
     return load_adflow_run(EXAMPLES / "adflow-run")
+
+
+@pytest.fixture
+def fleet():
+    return load_hardenscope_fleet(EXAMPLES / "hardenscope")
 
 
 def active(conn, source):
@@ -234,6 +241,78 @@ def test_load_netscope_scan(tmp_path, scan):
         load_netscope_scan(tmp_path / "empty")
 
 
+# ---- HardenScope ----------------------------------------------------------------------
+
+
+def test_hardenscope_opens_a_ticket_per_computer_and_critical_check(conn, fleet):
+    result = import_hardenscope(conn, fleet, lang="es")
+    keys = [r["external_key"] for r in active(conn, "hardenscope")]
+    assert keys == [
+        "hardenscope:FIN-LT03:HS-NET-05",
+        "hardenscope:HR-PC02:HS-CRED-01",
+        "hardenscope:OPS-PC04:HS-CRED-01",
+        "hardenscope:OPS-PC04:HS-NET-03",
+        "hardenscope:OPS-PC04:HS-NET-05",
+        "hardenscope:SAL-LT05:HS-NET-05",
+    ]
+    assert len(result.created) == 6
+    row = conn.execute(
+        "SELECT title, description, category, priority, device FROM tickets"
+        " WHERE external_key = 'hardenscope:OPS-PC04:HS-NET-03'"
+    ).fetchone()
+    assert row["title"] == "OPS-PC04: falla «Cortafuegos activado: perfil público»"
+    assert "Set-NetFirewallProfile -Profile Public -Enabled True" in row["description"]
+    assert "Por qué importa:" in row["description"] and "(F)" in row["description"]
+    assert "gravedad: crítica" in row["description"]
+    assert row["category"] == "network" and row["device"] == "OPS-PC04"
+    assert row["priority"] == "high"  # impact medium x urgency high
+
+
+def test_hardenscope_import_is_idempotent(conn, fleet):
+    import_hardenscope(conn, fleet)
+    again = import_hardenscope(conn, fleet)
+    assert again.created == [] and len(again.unchanged) == 6
+
+
+def test_hardenscope_resolves_fixed_checks_but_not_on_unreachable_computers(conn, fleet):
+    import_hardenscope(conn, fleet)
+    later = copy.deepcopy(fleet)
+    for rule in later["failing"]:
+        if rule["id"] == "HS-NET-05":  # SMBv1 removed everywhere
+            rule["failedOn"] = []
+    # OPS-PC04 could not be reached this time: its tickets must stay open
+    later["computers"] = [c for c in later["computers"] if c["name"] != "OPS-PC04"]
+    result = import_hardenscope(conn, later)
+    assert len(result.resolved) == 2  # FIN-LT03 and SAL-LT05
+    keys = [r["external_key"] for r in active(conn, "hardenscope")]
+    assert "hardenscope:OPS-PC04:HS-NET-05" in keys
+    assert "hardenscope:SAL-LT05:HS-NET-05" not in keys
+
+
+def test_hardenscope_severities_and_categories(conn, fleet):
+    result = import_hardenscope(conn, fleet, severities=["critical", "high"])
+    rows = active(conn, "hardenscope")
+    assert len(result.created) == len(rows) > 6
+    categories = dict(conn.execute(
+        "SELECT external_key, category FROM tickets WHERE source = 'hardenscope'"
+    ).fetchall())
+    assert categories["hardenscope:OPS-PC04:HS-CRED-01"] == "access"
+    assert categories["hardenscope:HR-PC02:HS-SYS-06"] == "software"
+
+
+def test_load_hardenscope_fleet(tmp_path, fleet):
+    old, new = dict(fleet, generatedAt="old"), dict(fleet, generatedAt="new")
+    (tmp_path / "fleet-20261101-000000.json").write_text(json.dumps(old), "utf-8")
+    (tmp_path / "fleet-20261117-000000.json").write_text(json.dumps(new), "utf-8")
+    (tmp_path / "WS-01-20261117-000000.json").write_text('{"tool": "HardenScope"}', "utf-8")
+    assert load_hardenscope_fleet(tmp_path)["generatedAt"] == "new"
+    with pytest.raises(ImportFormatError, match="not a HardenScope fleet"):
+        load_hardenscope_fleet(tmp_path / "WS-01-20261117-000000.json")
+    (tmp_path / "empty").mkdir()
+    with pytest.raises(ImportFormatError, match="no fleet"):
+        load_hardenscope_fleet(tmp_path / "empty")
+
+
 # ---- ADFlow -------------------------------------------------------------------------
 
 
@@ -359,7 +438,7 @@ def test_api_errors_are_json(client, conn, people):
     assert r.status_code == 422
 
 
-def test_api_imports_are_for_staff(client, conn, people, pcscope, scan, run):
+def test_api_imports_are_for_staff(client, conn, people, pcscope, scan, run, fleet):
     agent, req = bearer(conn, people["agent"]), bearer(conn, people["req"])
     devices, issues = pcscope
     assert client.post("/api/v1/import/pcscope", headers=req,
@@ -369,6 +448,11 @@ def test_api_imports_are_for_staff(client, conn, people, pcscope, scan, run):
     assert r.status_code == 200 and len(r.json()["created"]) == 3 and r.json()["devices"] == 9
     assert len(client.post("/api/v1/import/netscope", headers=agent, json=scan).json()["created"]) == 3
     assert len(client.post("/api/v1/import/adflow", headers=agent, json=run).json()["created"]) == 2
+    r = client.post("/api/v1/import/hardenscope?lang=es&severities=critical", headers=agent, json=fleet)
+    assert r.status_code == 200 and len(r.json()["created"]) == 6
+    assert client.post("/api/v1/import/hardenscope", headers=req, json=fleet).status_code == 403
+    assert client.post("/api/v1/import/hardenscope?severities=huge", headers=agent,
+                       json=fleet).status_code == 400
     bad = client.post("/api/v1/import/netscope", headers=agent, json={"tool": "x"})
     assert bad.status_code == 400 and bad.json()["error"] == "error.import_format"
     assert client.get("/api/v1/devices/ops-pc04", headers=agent).json()["data"]["Model"] == "OptiDesk 3000"
@@ -429,6 +513,9 @@ def test_cli_imports_and_tokens(tmp_path, capsys):
     assert cli.main(["--db", db, "import", "netscope", str(EXAMPLES / "netscope"), "--lang", "es"]) == 0
     assert cli.main(["--db", db, "import", "adflow", str(EXAMPLES / "adflow-run")]) == 0
     assert "adflow: 2 opened" in capsys.readouterr().out
+    assert cli.main(["--db", db, "import", "hardenscope", str(EXAMPLES / "hardenscope"),
+                     "--severities", "critical", "--lang", "es"]) == 0
+    assert "hardenscope: 6 opened" in capsys.readouterr().out
     assert cli.main(["--db", db, "import", "adflow", str(tmp_path)]) == 1
     assert cli.main(["--db", db, "token", "create", "integrations", "--name", "PCScope task"]) == 0
     secret = capsys.readouterr().out.strip()
@@ -444,7 +531,8 @@ def test_demo_includes_the_integrations(tmp_path, capsys):
     db = str(tmp_path / "demo.db")
     assert cli.main(["--db", db, "demo", "--lang", "es", "--history", "0"]) == 0
     out = capsys.readouterr().out
-    assert "with 9 users and 22 tickets" in out and "netscope: 3 opened" in out
+    assert "with 9 users and 28 tickets" in out and "netscope: 3 opened" in out
+    assert "hardenscope: 6 opened" in out
     conn = sqlite3.connect(db)
     assert conn.execute("SELECT COUNT(*) FROM devices").fetchone()[0] == 9
     conn.close()

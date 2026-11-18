@@ -338,4 +338,23 @@ def build_api(db_path: Path, policy: SlaPolicy) -> FastAPI:
             raise DeskError("error.import_format")
         return integrations.import_adflow(conn, summary, lang=lang).as_dict()
 
+    @api.post(f"{v1}/import/hardenscope", tags=["integrations"])
+    def import_hardenscope(
+        fleet: dict,
+        lang: Literal["en", "es"] = "en",
+        severities: str = "critical",
+        user: User = Depends(staff_user),
+        conn: sqlite3.Connection = Depends(get_conn),
+    ):
+        """A HardenScope fleet report (`HardenScope.ps1 -DeskScopeUrl` sends it).
+
+        `severities` is a comma-separated list: critical, high, medium, low.
+        """
+        if not integrations._is_hardenscope_fleet(fleet):
+            raise DeskError("error.import_format")
+        wanted = [s.strip().lower() for s in severities.split(",") if s.strip()]
+        if not wanted or any(s not in integrations.HARDENSCOPE_PRIORITY for s in wanted):
+            raise DeskError("error.import_format")
+        return integrations.import_hardenscope(conn, fleet, severities=wanted, lang=lang).as_dict()
+
     return api

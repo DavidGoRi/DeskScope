@@ -23,6 +23,7 @@ DeskScope is the fourth piece of a small sysadmin toolkit:
 | [PCScope](https://github.com/DavidGoRi/PCScope) | Inventory and health of Windows PCs |
 | [NetScope](https://github.com/DavidGoRi/NetScope) | Finds and identifies every device on the LAN |
 | [ADFlow](https://github.com/DavidGoRi/ADFlow) | Automated Active Directory onboarding and offboarding |
+| [HardenScope](https://github.com/DavidGoRi/HardenScope) | Read-only security hardening audit of Windows computers |
 | **DeskScope** | The help desk where all of that becomes tickets |
 
 The goal is the loop a real service desk lives in: *the inventory spots a problem → a ticket is opened → a technician fixes it → the fix is documented → the numbers show how the desk is doing*.
@@ -69,6 +70,7 @@ The goal is the loop a real service desk lives in: *the inventory spots a proble
 | **PCScope** | `devices.csv` + `issues.csv` from `PCScope.ps1 -ExportCsv` | A **device sheet** per computer (model, serial, Windows build, disk, BitLocker, antivirus, last user…) shown inside every ticket about that device, with its other tickets. One ticket per device and rule for critical issues (or the levels you choose). |
 | **NetScope** | a `scan-*.json` (or the newest in its folder) | Tickets for critical findings (Telnet open, SMBv1…) and for **devices seen for the first time**. |
 | **ADFlow** | the `summary.json` of a live run | An **onboarding** ticket per account created (groups, mailbox, home folder and a checklist) and an **offboarding** ticket per account disabled. |
+| **HardenScope** | a fleet report (`fleet-*.json`), or sent by `HardenScope.ps1 -DeskScopeUrl` | One ticket per computer and **failed security check** (critical by default, `--severities critical,high`) with the risk, the fix and the PowerShell command. Fixed checks are resolved by the next audit; computers that could not be reached keep their tickets. |
 
 Imports are **idempotent and self-healing**:
 
@@ -83,6 +85,7 @@ Tickets from tools are opened by a built-in `integrations` system account that c
 deskscope import pcscope  \\fileserver\pcscope\export --lang es
 deskscope import netscope C:\NetScope\output
 deskscope import adflow   C:\ADFlow\output\runs\20261117-080000-onboarding
+deskscope import hardenscope C:\HardenScope\output --severities critical,high
 ```
 
 ### Email and Telegram
@@ -180,7 +183,7 @@ deskscope serve --host 0.0.0.0 --secure-cookies --worker-every 60   # behind an 
 |---|---|
 | `init`, `create-user`, `token create/list/revoke` | database, accounts, API tokens |
 | `demo [--lang es] [--history 60]` | fictitious company |
-| `import pcscope / netscope / adflow` | tickets from the toolkit |
+| `import pcscope / netscope / adflow / hardenscope` | tickets from the toolkit |
 | `notify`, `fetch-mail`, `worker --every 60` | email and Telegram |
 | `sla`, `serve` | policy check, web server |
 

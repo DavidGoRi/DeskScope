@@ -1,0 +1,801 @@
+{
+    "tool":  "HardenScope",
+    "kind":  "fleet",
+    "version":  "0.3.0",
+    "generatedAt":  "2026-11-17T07:30:00+01:00",
+    "baseline":  {
+                     "name":  "HardenScope workstation baseline",
+                     "version":  "1.0"
+                 },
+    "summary":  {
+                    "computers":  9,
+                    "unreachable":  0,
+                    "averageScore":  80,
+                    "grades":  {
+                                   "A":  5,
+                                   "B":  0,
+                                   "C":  3,
+                                   "D":  0,
+                                   "F":  1
+                               },
+                    "withCriticalFailures":  4,
+                    "compared":  0,
+                    "regressions":  0,
+                    "improved":  0,
+                    "worsened":  0
+                },
+    "computers":  [
+                      {
+                          "name":  "OPS-PC04",
+                          "os":  "Microsoft Windows 11 Pro (build 26100)",
+                          "generatedAt":  "2026-11-17T07:30:00+01:00",
+                          "score":  31,
+                          "grade":  "F",
+                          "failed":  25,
+                          "unknown":  0,
+                          "failedBySeverity":  {
+                                                   "critical":  3,
+                                                   "high":  7,
+                                                   "medium":  12,
+                                                   "low":  3
+                                               },
+                          "report":  null,
+                          "change":  null
+                      },
+                      {
+                          "name":  "HR-PC02",
+                          "os":  "Microsoft Windows 11 Pro (build 26100)",
+                          "generatedAt":  "2026-11-17T07:30:00+01:00",
+                          "score":  65,
+                          "grade":  "C",
+                          "failed":  13,
+                          "unknown":  0,
+                          "failedBySeverity":  {
+                                                   "critical":  1,
+                                                   "high":  5,
+                                                   "medium":  5,
+                                                   "low":  2
+                                               },
+                          "report":  null,
+                          "change":  null
+                      },
+                      {
+                          "name":  "SAL-LT05",
+                          "os":  "Microsoft Windows 11 Pro (build 26100)",
+                          "generatedAt":  "2026-11-17T07:30:00+01:00",
+                          "score":  70,
+                          "grade":  "C",
+                          "failed":  12,
+                          "unknown":  0,
+                          "failedBySeverity":  {
+                                                   "critical":  1,
+                                                   "high":  3,
+                                                   "medium":  6,
+                                                   "low":  2
+                                               },
+                          "report":  null,
+                          "change":  null
+                      },
+                      {
+                          "name":  "FIN-LT03",
+                          "os":  "Microsoft Windows 11 Pro (build 26100)",
+                          "generatedAt":  "2026-11-17T07:30:00+01:00",
+                          "score":  86,
+                          "grade":  "C",
+                          "failed":  3,
+                          "unknown":  0,
+                          "failedBySeverity":  {
+                                                   "critical":  1,
+                                                   "high":  2,
+                                                   "medium":  0,
+                                                   "low":  0
+                                               },
+                          "report":  null,
+                          "change":  null
+                      },
+                      {
+                          "name":  "OPS-PC01",
+                          "os":  "Microsoft Windows 11 Pro (build 26100)",
+                          "generatedAt":  "2026-11-17T07:30:00+01:00",
+                          "score":  91,
+                          "grade":  "A",
+                          "failed":  5,
+                          "unknown":  0,
+                          "failedBySeverity":  {
+                                                   "critical":  0,
+                                                   "high":  1,
+                                                   "medium":  2,
+                                                   "low":  2
+                                               },
+                          "report":  null,
+                          "change":  null
+                      },
+                      {
+                          "name":  "LEG-PC01",
+                          "os":  "Microsoft Windows 11 Pro (build 26100)",
+                          "generatedAt":  "2026-11-17T07:30:00+01:00",
+                          "score":  94,
+                          "grade":  "A",
+                          "failed":  2,
+                          "unknown":  0,
+                          "failedBySeverity":  {
+                                                   "critical":  0,
+                                                   "high":  1,
+                                                   "medium":  1,
+                                                   "low":  0
+                                               },
+                          "report":  null,
+                          "change":  null
+                      },
+                      {
+                          "name":  "MKT-LT01",
+                          "os":  "Microsoft Windows 11 Pro (build 26100)",
+                          "generatedAt":  "2026-11-17T07:30:00+01:00",
+                          "score":  94,
+                          "grade":  "A",
+                          "failed":  3,
+                          "unknown":  0,
+                          "failedBySeverity":  {
+                                                   "critical":  0,
+                                                   "high":  1,
+                                                   "medium":  1,
+                                                   "low":  1
+                                               },
+                          "report":  null,
+                          "change":  null
+                      },
+                      {
+                          "name":  "MKT-PC02",
+                          "os":  "Microsoft Windows 11 Pro (build 26100)",
+                          "generatedAt":  "2026-11-17T07:30:00+01:00",
+                          "score":  94,
+                          "grade":  "A",
+                          "failed":  4,
+                          "unknown":  0,
+                          "failedBySeverity":  {
+                                                   "critical":  0,
+                                                   "high":  0,
+                                                   "medium":  3,
+                                                   "low":  1
+                                               },
+                          "report":  null,
+                          "change":  null
+                      },
+                      {
+                          "name":  "FIN-PC02",
+                          "os":  "Microsoft Windows 11 Pro (build 26100)",
+                          "generatedAt":  "2026-11-17T07:30:00+01:00",
+                          "score":  99,
+                          "grade":  "A",
+                          "failed":  1,
+                          "unknown":  0,
+                          "failedBySeverity":  {
+                                                   "critical":  0,
+                                                   "high":  0,
+                                                   "medium":  0,
+                                                   "low":  1
+                                               },
+                          "report":  null,
+                          "change":  null
+                      }
+                  ],
+    "failing":  [
+                    {
+                        "id":  "HS-SYS-03",
+                        "category":  "System",
+                        "severity":  "high",
+                        "title":  {
+                                      "en":  "Updates installed in the last 45 days",
+                                      "es":  "Actualizaciones instaladas en los últimos 45 días"
+                                  },
+                        "risk":  {
+                                     "en":  "Microsoft publishes fixes every month; a computer that skips them is exposed to known, public exploits.",
+                                     "es":  "Microsoft publica parches cada mes; un equipo que se los salta queda expuesto a ataques ya conocidos y públicos."
+                                 },
+                        "fix":  {
+                                    "en":  "Install the pending updates from Windows Update and check that the update service is not blocked.",
+                                    "es":  "Instala las actualizaciones pendientes desde Windows Update y comprueba que el servicio no esté bloqueado."
+                                },
+                        "command":  "Start-Process ms-settings:windowsupdate",
+                        "failedOn":  [
+                                         "FIN-LT03",
+                                         "HR-PC02",
+                                         "OPS-PC01",
+                                         "OPS-PC04",
+                                         "SAL-LT05"
+                                     ],
+                        "failedCount":  5
+                    },
+                    {
+                        "id":  "HS-NET-06",
+                        "category":  "Network",
+                        "severity":  "medium",
+                        "title":  {
+                                      "en":  "SMB client requires signing",
+                                      "es":  "El cliente SMB exige firma"
+                                  },
+                        "risk":  {
+                                     "en":  "Unsigned SMB traffic can be intercepted and relayed to take over sessions.",
+                                     "es":  "El tráfico SMB sin firmar se puede interceptar y reenviar para suplantar sesiones."
+                                 },
+                        "fix":  {
+                                    "en":  "Require signing on the SMB client.",
+                                    "es":  "Exige la firma en el cliente SMB."
+                                },
+                        "command":  "Set-SmbClientConfiguration -RequireSecuritySignature $true -Force",
+                        "failedOn":  [
+                                         "HR-PC02",
+                                         "MKT-LT01",
+                                         "OPS-PC01",
+                                         "OPS-PC04",
+                                         "SAL-LT05"
+                                     ],
+                        "failedCount":  5
+                    },
+                    {
+                        "id":  "HS-SYS-06",
+                        "category":  "System",
+                        "severity":  "high",
+                        "title":  {
+                                      "en":  "System drive encrypted with BitLocker",
+                                      "es":  "Disco del sistema cifrado con BitLocker"
+                                  },
+                        "risk":  {
+                                     "en":  "If the laptop is lost or stolen, anyone can read the disk and the company data on it.",
+                                     "es":  "Si se pierde o roban el portátil, cualquiera puede leer el disco y los datos de la empresa."
+                                 },
+                        "fix":  {
+                                    "en":  "Turn on BitLocker and keep the recovery key in Active Directory or Entra ID before encrypting.",
+                                    "es":  "Activa BitLocker y guarda la clave de recuperación en Active Directory o Entra ID antes de cifrar."
+                                },
+                        "command":  "Enable-BitLocker -MountPoint $env:SystemDrive -EncryptionMethod XtsAes256 -TpmProtector; Add-BitLockerKeyProtector -MountPoint $env:SystemDrive -RecoveryPasswordProtector",
+                        "failedOn":  [
+                                         "HR-PC02",
+                                         "LEG-PC01",
+                                         "OPS-PC04",
+                                         "SAL-LT05"
+                                     ],
+                        "failedCount":  4
+                    },
+                    {
+                        "id":  "HS-CRED-03",
+                        "category":  "Credentials",
+                        "severity":  "medium",
+                        "title":  {
+                                      "en":  "LSA protection enabled",
+                                      "es":  "Protección de LSA activada"
+                                  },
+                        "risk":  {
+                                     "en":  "Without it, any administrator process can dump the credentials kept by LSASS.",
+                                     "es":  "Sin ella, cualquier proceso administrador puede volcar las credenciales que guarda LSASS."
+                                 },
+                        "fix":  {
+                                    "en":  "Enable LSA protection (RunAsPPL) and restart; test drivers and smart-card plug-ins first.",
+                                    "es":  "Activa la protección de LSA (RunAsPPL) y reinicia; prueba antes los controladores y complementos de tarjetas inteligentes."
+                                },
+                        "command":  "Set-ItemProperty -Path \u0027HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Lsa\u0027 -Name RunAsPPL -Value 1 -Type DWord",
+                        "failedOn":  [
+                                         "HR-PC02",
+                                         "LEG-PC01",
+                                         "OPS-PC04",
+                                         "SAL-LT05"
+                                     ],
+                        "failedCount":  4
+                    },
+                    {
+                        "id":  "HS-NET-09",
+                        "category":  "Network",
+                        "severity":  "low",
+                        "title":  {
+                                      "en":  "Remote Registry service disabled",
+                                      "es":  "Servicio Registro remoto desactivado"
+                                  },
+                        "risk":  {
+                                     "en":  "Remote Registry lets other computers read the registry and helps attackers move through the network.",
+                                     "es":  "Registro remoto deja que otros equipos lean el registro y ayuda a moverse por la red."
+                                 },
+                        "fix":  {
+                                    "en":  "Stop and disable the service unless a management tool needs it.",
+                                    "es":  "Detén y desactiva el servicio salvo que lo necesite una herramienta de gestión."
+                                },
+                        "command":  "Stop-Service -Name RemoteRegistry -Force; Set-Service -Name RemoteRegistry -StartupType Disabled",
+                        "failedOn":  [
+                                         "HR-PC02",
+                                         "MKT-PC02",
+                                         "OPS-PC01",
+                                         "OPS-PC04"
+                                     ],
+                        "failedCount":  4
+                    },
+                    {
+                        "id":  "HS-NET-05",
+                        "category":  "Network",
+                        "severity":  "critical",
+                        "title":  {
+                                      "en":  "SMBv1 disabled",
+                                      "es":  "SMBv1 desactivado"
+                                  },
+                        "risk":  {
+                                     "en":  "SMBv1 is the protocol WannaCry and NotPetya used to spread across whole companies.",
+                                     "es":  "SMBv1 es el protocolo con el que WannaCry y NotPetya se extendieron por empresas enteras."
+                                 },
+                        "fix":  {
+                                    "en":  "Remove the SMB 1.0/CIFS feature.",
+                                    "es":  "Quita la característica SMB 1.0/CIFS."
+                                },
+                        "command":  "Disable-WindowsOptionalFeature -Online -FeatureName SMB1Protocol -NoRestart",
+                        "failedOn":  [
+                                         "FIN-LT03",
+                                         "OPS-PC04",
+                                         "SAL-LT05"
+                                     ],
+                        "failedCount":  3
+                    },
+                    {
+                        "id":  "HS-DEF-02",
+                        "category":  "Defense",
+                        "severity":  "high",
+                        "title":  {
+                                      "en":  "Antivirus signatures up to date",
+                                      "es":  "Firmas del antivirus al día"
+                                  },
+                        "risk":  {
+                                     "en":  "Old signatures do not detect the malware that is spreading this week.",
+                                     "es":  "Unas firmas antiguas no detectan el malware que circula esta semana."
+                                 },
+                        "fix":  {
+                                    "en":  "Update the signatures and check that the computer reaches the update server.",
+                                    "es":  "Actualiza las firmas y comprueba que el equipo llega al servidor de actualizaciones."
+                                },
+                        "command":  "Update-MpSignature",
+                        "failedOn":  [
+                                         "FIN-LT03",
+                                         "HR-PC02",
+                                         "OPS-PC04"
+                                     ],
+                        "failedCount":  3
+                    },
+                    {
+                        "id":  "HS-NET-08",
+                        "category":  "Network",
+                        "severity":  "high",
+                        "title":  {
+                                      "en":  "Remote Desktop requires Network Level Authentication",
+                                      "es":  "Escritorio remoto exige autenticación a nivel de red (NLA)"
+                                  },
+                        "risk":  {
+                                     "en":  "Without NLA the login screen is exposed before authenticating, as BlueKeep showed.",
+                                     "es":  "Sin NLA, la pantalla de inicio queda expuesta antes de autenticarse, como demostró BlueKeep."
+                                 },
+                        "fix":  {
+                                    "en":  "Require NLA for Remote Desktop connections.",
+                                    "es":  "Exige NLA para las conexiones de escritorio remoto."
+                                },
+                        "command":  "Set-ItemProperty -Path \u0027HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Terminal Server\\WinStations\\RDP-Tcp\u0027 -Name UserAuthentication -Value 1 -Type DWord",
+                        "failedOn":  [
+                                         "HR-PC02",
+                                         "MKT-LT01",
+                                         "OPS-PC04"
+                                     ],
+                        "failedCount":  3
+                    },
+                    {
+                        "id":  "HS-ACC-05",
+                        "category":  "Accounts",
+                        "severity":  "medium",
+                        "title":  {
+                                      "en":  "Account locks after 5 failed attempts or fewer",
+                                      "es":  "La cuenta se bloquea tras 5 intentos fallidos o menos"
+                                  },
+                        "risk":  {
+                                     "en":  "Without a lockout an attacker can try passwords forever.",
+                                     "es":  "Sin bloqueo, un atacante puede probar contraseñas sin límite."
+                                 },
+                        "fix":  {
+                                    "en":  "Set the lockout threshold to 5.",
+                                    "es":  "Pon el umbral de bloqueo en 5."
+                                },
+                        "command":  "net accounts /lockoutthreshold:5",
+                        "failedOn":  [
+                                         "HR-PC02",
+                                         "OPS-PC04",
+                                         "SAL-LT05"
+                                     ],
+                        "failedCount":  3
+                    },
+                    {
+                        "id":  "HS-CRED-04",
+                        "category":  "Credentials",
+                        "severity":  "medium",
+                        "title":  {
+                                      "en":  "Only NTLMv2 is sent; LM and NTLMv1 refused",
+                                      "es":  "Solo se envía NTLMv2; LM y NTLMv1 rechazados"
+                                  },
+                        "risk":  {
+                                     "en":  "LM and NTLMv1 hashes are cracked in seconds.",
+                                     "es":  "Los hashes LM y NTLMv1 se descifran en segundos."
+                                 },
+                        "fix":  {
+                                    "en":  "Set LAN Manager authentication level to 5 after checking no old device depends on NTLMv1.",
+                                    "es":  "Pon el nivel de autenticación de LAN Manager en 5 tras comprobar que ningún dispositivo antiguo depende de NTLMv1."
+                                },
+                        "command":  "Set-ItemProperty -Path \u0027HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Lsa\u0027 -Name LmCompatibilityLevel -Value 5 -Type DWord",
+                        "failedOn":  [
+                                         "OPS-PC01",
+                                         "OPS-PC04",
+                                         "SAL-LT05"
+                                     ],
+                        "failedCount":  3
+                    },
+                    {
+                        "id":  "HS-NET-04",
+                        "category":  "Network",
+                        "severity":  "medium",
+                        "title":  {
+                                      "en":  "Firewall blocks unsolicited inbound traffic",
+                                      "es":  "El cortafuegos bloquea el tráfico entrante no solicitado"
+                                  },
+                        "risk":  {
+                                     "en":  "A profile that allows inbound traffic by default is almost the same as having no firewall.",
+                                     "es":  "Un perfil que permite por defecto el tráfico entrante es casi como no tener cortafuegos."
+                                 },
+                        "fix":  {
+                                    "en":  "Set the default inbound action to Block on every profile.",
+                                    "es":  "Pon la acción de entrada por defecto en Bloquear en todos los perfiles."
+                                },
+                        "command":  "Set-NetFirewallProfile -Profile Domain,Private,Public -DefaultInboundAction Block",
+                        "failedOn":  [
+                                         "HR-PC02",
+                                         "MKT-PC02",
+                                         "OPS-PC04"
+                                     ],
+                        "failedCount":  3
+                    },
+                    {
+                        "id":  "HS-NET-07",
+                        "category":  "Network",
+                        "severity":  "medium",
+                        "title":  {
+                                      "en":  "LLMNR name resolution disabled",
+                                      "es":  "Resolución de nombres LLMNR desactivada"
+                                  },
+                        "risk":  {
+                                     "en":  "Tools like Responder answer LLMNR queries and capture password hashes on the local network.",
+                                     "es":  "Herramientas como Responder contestan a LLMNR y capturan hashes de contraseñas en la red local."
+                                 },
+                        "fix":  {
+                                    "en":  "Disable multicast name resolution by policy.",
+                                    "es":  "Desactiva la resolución de nombres multidifusión por directiva."
+                                },
+                        "command":  "New-Item -Path \u0027HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\DNSClient\u0027 -Force | Out-Null; Set-ItemProperty -Path \u0027HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\DNSClient\u0027 -Name EnableMulticast -Value 0 -Type DWord",
+                        "failedOn":  [
+                                         "HR-PC02",
+                                         "OPS-PC04",
+                                         "SAL-LT05"
+                                     ],
+                        "failedCount":  3
+                    },
+                    {
+                        "id":  "HS-DEF-06",
+                        "category":  "Defense",
+                        "severity":  "low",
+                        "title":  {
+                                      "en":  "AutoRun disabled on all drives",
+                                      "es":  "Reproducción automática desactivada en todas las unidades"
+                                  },
+                        "risk":  {
+                                     "en":  "A USB stick left in the car park can run code as soon as it is plugged in.",
+                                     "es":  "Un USB abandonado en el aparcamiento puede ejecutar código nada más conectarlo."
+                                 },
+                        "fix":  {
+                                    "en":  "Disable AutoRun for every drive type.",
+                                    "es":  "Desactiva la ejecución automática para todos los tipos de unidad."
+                                },
+                        "command":  "New-Item -Path \u0027HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer\u0027 -Force | Out-Null; Set-ItemProperty -Path \u0027HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer\u0027 -Name NoDriveTypeAutoRun -Value 255 -Type DWord",
+                        "failedOn":  [
+                                         "HR-PC02",
+                                         "OPS-PC04",
+                                         "SAL-LT05"
+                                     ],
+                        "failedCount":  3
+                    },
+                    {
+                        "id":  "HS-SYS-04",
+                        "category":  "System",
+                        "severity":  "low",
+                        "title":  {
+                                      "en":  "No restart pending",
+                                      "es":  "Sin reinicio pendiente"
+                                  },
+                        "risk":  {
+                                     "en":  "Installed updates do not protect the computer until it restarts.",
+                                     "es":  "Las actualizaciones instaladas no protegen el equipo hasta que se reinicia."
+                                 },
+                        "fix":  {
+                                    "en":  "Restart the computer at a convenient time.",
+                                    "es":  "Reinicia el equipo cuando no moleste al usuario."
+                                },
+                        "command":  "Restart-Computer",
+                        "failedOn":  [
+                                         "MKT-LT01",
+                                         "OPS-PC01",
+                                         "SAL-LT05"
+                                     ],
+                        "failedCount":  3
+                    },
+                    {
+                        "id":  "HS-CRED-01",
+                        "category":  "Credentials",
+                        "severity":  "critical",
+                        "title":  {
+                                      "en":  "No automatic logon",
+                                      "es":  "Sin inicio de sesión automático"
+                                  },
+                        "risk":  {
+                                     "en":  "Automatic logon keeps the password in the registry and opens the session to whoever turns the computer on.",
+                                     "es":  "El inicio automático guarda la contraseña en el registro y abre la sesión a quien encienda el equipo."
+                                 },
+                        "fix":  {
+                                    "en":  "Turn automatic logon off and delete the stored password.",
+                                    "es":  "Desactiva el inicio automático y borra la contraseña guardada."
+                                },
+                        "command":  "Set-ItemProperty -Path \u0027HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon\u0027 -Name AutoAdminLogon -Value \u00270\u0027; Remove-ItemProperty -Path \u0027HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon\u0027 -Name DefaultPassword -ErrorAction SilentlyContinue",
+                        "failedOn":  [
+                                         "HR-PC02",
+                                         "OPS-PC04"
+                                     ],
+                        "failedCount":  2
+                    },
+                    {
+                        "id":  "HS-ACC-04",
+                        "category":  "Accounts",
+                        "severity":  "high",
+                        "title":  {
+                                      "en":  "Minimum password length of 14 characters",
+                                      "es":  "Longitud mínima de contraseña de 14 caracteres"
+                                  },
+                        "risk":  {
+                                     "en":  "Short passwords fall to brute force in minutes.",
+                                     "es":  "Las contraseñas cortas caen por fuerza bruta en minutos."
+                                 },
+                        "fix":  {
+                                    "en":  "Set the minimum length to 14 (by GPO in a domain).",
+                                    "es":  "Pon la longitud mínima en 14 (por GPO si hay dominio)."
+                                },
+                        "command":  "net accounts /minpwlen:14",
+                        "failedOn":  [
+                                         "OPS-PC04",
+                                         "SAL-LT05"
+                                     ],
+                        "failedCount":  2
+                    },
+                    {
+                        "id":  "HS-SYS-05",
+                        "category":  "System",
+                        "severity":  "high",
+                        "title":  {
+                                      "en":  "Secure Boot enabled",
+                                      "es":  "Arranque seguro (Secure Boot) activado"
+                                  },
+                        "risk":  {
+                                     "en":  "Without Secure Boot a bootkit can load before Windows and hide from the antivirus.",
+                                     "es":  "Sin Secure Boot, un bootkit puede cargarse antes que Windows y esconderse del antivirus."
+                                 },
+                        "fix":  {
+                                    "en":  "Enable Secure Boot in the UEFI firmware settings (the disk must use GPT).",
+                                    "es":  "Activa Secure Boot en la configuración UEFI del firmware (el disco debe ser GPT)."
+                                },
+                        "command":  null,
+                        "failedOn":  [
+                                         "HR-PC02",
+                                         "OPS-PC04"
+                                     ],
+                        "failedCount":  2
+                    },
+                    {
+                        "id":  "HS-ACC-03",
+                        "category":  "Accounts",
+                        "severity":  "medium",
+                        "title":  {
+                                      "en":  "Two or fewer local administrators",
+                                      "es":  "Dos administradores locales como mucho"
+                                  },
+                        "risk":  {
+                                     "en":  "Every extra administrator is another account that can install malware or switch defences off.",
+                                     "es":  "Cada administrador de más es otra cuenta capaz de instalar malware o apagar las defensas."
+                                 },
+                        "fix":  {
+                                    "en":  "Review the members of the Administrators group and remove the ones that do not need it.",
+                                    "es":  "Revisa el grupo Administradores y quita a quien no lo necesite."
+                                },
+                        "command":  "Get-LocalGroupMember -SID S-1-5-32-544",
+                        "failedOn":  [
+                                         "OPS-PC04",
+                                         "SAL-LT05"
+                                     ],
+                        "failedCount":  2
+                    },
+                    {
+                        "id":  "HS-DEF-03",
+                        "category":  "Defense",
+                        "severity":  "medium",
+                        "title":  {
+                                      "en":  "Defender tamper protection on",
+                                      "es":  "Protección contra alteraciones de Defender activada"
+                                  },
+                        "risk":  {
+                                     "en":  "Ransomware usually switches the antivirus off first; tamper protection blocks that.",
+                                     "es":  "El ransomware suele apagar primero el antivirus; la protección contra alteraciones lo impide."
+                                 },
+                        "fix":  {
+                                    "en":  "Turn it on in Windows Security \u003e Virus \u0026 threat protection, or centrally from Intune.",
+                                    "es":  "Actívala en Seguridad de Windows \u003e Protección antivirus y contra amenazas, o desde Intune."
+                                },
+                        "command":  null,
+                        "failedOn":  [
+                                         "MKT-PC02",
+                                         "OPS-PC04"
+                                     ],
+                        "failedCount":  2
+                    },
+                    {
+                        "id":  "HS-DEF-07",
+                        "category":  "Defense",
+                        "severity":  "medium",
+                        "title":  {
+                                      "en":  "PowerShell 2.0 removed",
+                                      "es":  "PowerShell 2.0 eliminado"
+                                  },
+                        "risk":  {
+                                     "en":  "Attackers start PowerShell 2.0 to skip script logging and AMSI.",
+                                     "es":  "Los atacantes arrancan PowerShell 2.0 para saltarse el registro de scripts y AMSI."
+                                 },
+                        "fix":  {
+                                    "en":  "Remove the Windows PowerShell 2.0 optional feature.",
+                                    "es":  "Quita la característica opcional Windows PowerShell 2.0."
+                                },
+                        "command":  "Disable-WindowsOptionalFeature -Online -FeatureName MicrosoftWindowsPowerShellV2Root -NoRestart",
+                        "failedOn":  [
+                                         "MKT-PC02",
+                                         "OPS-PC04"
+                                     ],
+                        "failedCount":  2
+                    },
+                    {
+                        "id":  "HS-ACC-06",
+                        "category":  "Accounts",
+                        "severity":  "low",
+                        "title":  {
+                                      "en":  "Screen locks after 15 minutes idle",
+                                      "es":  "La pantalla se bloquea tras 15 minutos de inactividad"
+                                  },
+                        "risk":  {
+                                     "en":  "An unlocked computer left on a desk gives anyone the user\u0027s session.",
+                                     "es":  "Un equipo desbloqueado en una mesa le da a cualquiera la sesión del usuario."
+                                 },
+                        "fix":  {
+                                    "en":  "Set the machine inactivity limit to 900 seconds.",
+                                    "es":  "Pon el límite de inactividad del equipo en 900 segundos."
+                                },
+                        "command":  "Set-ItemProperty -Path \u0027HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\u0027 -Name InactivityTimeoutSecs -Value 900 -Type DWord",
+                        "failedOn":  [
+                                         "FIN-PC02",
+                                         "OPS-PC04"
+                                     ],
+                        "failedCount":  2
+                    },
+                    {
+                        "id":  "HS-NET-03",
+                        "category":  "Network",
+                        "severity":  "critical",
+                        "title":  {
+                                      "en":  "Firewall on: public profile",
+                                      "es":  "Cortafuegos activado: perfil público"
+                                  },
+                        "risk":  {
+                                     "en":  "On hotel or airport Wi-Fi the computer is exposed to strangers.",
+                                     "es":  "En la wifi de un hotel o un aeropuerto el equipo queda expuesto a desconocidos."
+                                 },
+                        "fix":  {
+                                    "en":  "Turn the public profile on.",
+                                    "es":  "Activa el perfil público."
+                                },
+                        "command":  "Set-NetFirewallProfile -Profile Public -Enabled True",
+                        "failedOn":  [
+                                         "OPS-PC04"
+                                     ],
+                        "failedCount":  1
+                    },
+                    {
+                        "id":  "HS-CRED-02",
+                        "category":  "Credentials",
+                        "severity":  "high",
+                        "title":  {
+                                      "en":  "WDigest does not keep passwords in memory",
+                                      "es":  "WDigest no guarda contraseñas en memoria"
+                                  },
+                        "risk":  {
+                                     "en":  "With WDigest on, Mimikatz reads the passwords of logged-on users in clear text.",
+                                     "es":  "Con WDigest activo, Mimikatz lee en claro las contraseñas de los usuarios conectados."
+                                 },
+                        "fix":  {
+                                    "en":  "Set UseLogonCredential to 0.",
+                                    "es":  "Pon UseLogonCredential a 0."
+                                },
+                        "command":  "Set-ItemProperty -Path \u0027HKLM:\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\WDigest\u0027 -Name UseLogonCredential -Value 0 -Type DWord",
+                        "failedOn":  [
+                                         "OPS-PC04"
+                                     ],
+                        "failedCount":  1
+                    },
+                    {
+                        "id":  "HS-ACC-01",
+                        "category":  "Accounts",
+                        "severity":  "medium",
+                        "title":  {
+                                      "en":  "Guest account disabled",
+                                      "es":  "Cuenta de invitado desactivada"
+                                  },
+                        "risk":  {
+                                     "en":  "The guest account lets anyone log on without a password.",
+                                     "es":  "La cuenta de invitado deja entrar a cualquiera sin contraseña."
+                                 },
+                        "fix":  {
+                                    "en":  "Disable the built-in guest account.",
+                                    "es":  "Desactiva la cuenta de invitado integrada."
+                                },
+                        "command":  "Get-LocalUser | Where-Object { $_.SID -like \u0027*-501\u0027 } | Disable-LocalUser",
+                        "failedOn":  [
+                                         "OPS-PC04"
+                                     ],
+                        "failedCount":  1
+                    },
+                    {
+                        "id":  "HS-ACC-02",
+                        "category":  "Accounts",
+                        "severity":  "medium",
+                        "title":  {
+                                      "en":  "Built-in Administrator account disabled",
+                                      "es":  "Cuenta Administrador integrada desactivada"
+                                  },
+                        "risk":  {
+                                     "en":  "Everyone knows its name and it is never locked out, so it is the first target of password guessing.",
+                                     "es":  "Todo el mundo conoce su nombre y nunca se bloquea: es el primer objetivo de los ataques de contraseñas."
+                                 },
+                        "fix":  {
+                                    "en":  "Disable it and use named administrator accounts (and LAPS for the local one).",
+                                    "es":  "Desactívala y usa cuentas de administrador nominales (y LAPS para la local)."
+                                },
+                        "command":  "Get-LocalUser | Where-Object { $_.SID -like \u0027*-500\u0027 } | Disable-LocalUser",
+                        "failedOn":  [
+                                         "OPS-PC04"
+                                     ],
+                        "failedCount":  1
+                    },
+                    {
+                        "id":  "HS-DEF-05",
+                        "category":  "Defense",
+                        "severity":  "medium",
+                        "title":  {
+                                      "en":  "UAC asks administrators before elevating",
+                                      "es":  "UAC pide confirmación a los administradores"
+                                  },
+                        "risk":  {
+                                     "en":  "\"Elevate without prompting\" lets any process become administrator silently.",
+                                     "es":  "\"Elevar sin preguntar\" deja que cualquier proceso se haga administrador en silencio."
+                                 },
+                        "fix":  {
+                                    "en":  "Set it to prompt for consent on the secure desktop (value 2).",
+                                    "es":  "Configúralo para pedir consentimiento en el escritorio seguro (valor 2)."
+                                },
+                        "command":  "Set-ItemProperty -Path \u0027HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\u0027 -Name ConsentPromptBehaviorAdmin -Value 2 -Type DWord",
+                        "failedOn":  [
+                                         "OPS-PC04"
+                                     ],
+                        "failedCount":  1
+                    }
+                ],
+    "unreachable":  [
+
+                    ]
+}

@@ -1,4 +1,4 @@
-"""Tickets from the rest of the toolkit: PCScope, NetScope and ADFlow.
+"""Tickets from the rest of the toolkit: PCScope, NetScope, ADFlow and HardenScope.
 
 Each tool's output is turned into *findings* with a stable key, and
 :func:`sync` reconciles them with the open tickets:
@@ -107,6 +107,12 @@ TEXTS = {
         "Previous OU: {ou}\nGroups removed: {groups}\nData archived to: {archive}\n\n"
         "Checklist:\n[ ] Collect the laptop, phone and badge\n[ ] Forward or archive the mailbox\n"
         "[ ] Remove licences and shared mailbox access\n[ ] Confirm with the manager",
+        "hardenscope_title": "{device}: failed check “{rule}”",
+        "hardenscope_body": "HardenScope found a failed security check on {device}:\n\n{rule} "
+        "({id}, severity: {severity})\n\nWhy it matters: {risk}\n\nHow to fix it: {fix}"
+        "{command}\n\nHardening score of {device}: {score} ({grade}).",
+        "hardenscope_command": "\n\nPowerShell (review it before running it as administrator):\n"
+        "{command}",
         "none": "—",
     },
     "es": {
@@ -134,6 +140,12 @@ TEXTS = {
         "Lista de tareas:\n[ ] Recoger el portátil, el móvil y la tarjeta\n"
         "[ ] Redirigir o archivar el buzón\n[ ] Retirar licencias y buzones compartidos\n"
         "[ ] Confirmarlo con su responsable",
+        "hardenscope_title": "{device}: falla «{rule}»",
+        "hardenscope_body": "HardenScope ha encontrado una comprobación de seguridad fallida en "
+        "{device}:\n\n{rule} ({id}, gravedad: {severity})\n\nPor qué importa: {risk}\n\n"
+        "Cómo arreglarlo: {fix}{command}\n\nNota de bastionado de {device}: {score} ({grade}).",
+        "hardenscope_command": "\n\nPowerShell (revísalo antes de ejecutarlo como administrador):\n"
+        "{command}",
         "none": "—",
     },
 }
@@ -524,3 +536,113 @@ IMPORTERS: dict[str, Callable] = {
     "netscope": import_netscope,
     "adflow": import_adflow,
 }
+
+
+# ---- HardenScope ------------------------------------------------------------------
+
+# HardenScope severity -> (impact, urgency): a failed check exposes one computer,
+# but a critical one (firewall off, SMBv1, automatic logon) must be fixed fast.
+HARDENSCOPE_PRIORITY = {
+    "critical": ("medium", "high"),
+    "high": ("medium", "medium"),
+    "medium": ("low", "medium"),
+    "low": ("low", "low"),
+}
+HARDENSCOPE_CATEGORY = {"Network": "network", "Accounts": "access", "Credentials": "access"}
+HARDENSCOPE_SEVERITIES = ("critical",)
+HARDENSCOPE_SEVERITY_NAMES = {
+    "en": {"critical": "critical", "high": "high", "medium": "medium", "low": "low"},
+    "es": {"critical": "crítica", "high": "alta", "medium": "media", "low": "baja"},
+}
+
+
+def _localized(value, lang: str) -> str:
+    """HardenScope texts are {"en": ..., "es": ...}."""
+    if isinstance(value, dict):
+        return str(value.get(lang) or value.get("en") or "")
+    return str(value or "")
+
+
+def _is_hardenscope_fleet(data) -> bool:
+    return (isinstance(data, dict) and data.get("tool") == "HardenScope"
+            and data.get("kind") == "fleet" and isinstance(data.get("computers"), list)
+            and isinstance(data.get("failing"), list))
+
+
+def load_hardenscope_fleet(path: str | Path) -> dict:
+    """A fleet-*.json written by HardenScope, or the newest one in its output folder."""
+    path = Path(path)
+    if path.is_dir():
+        candidates = sorted(path.glob("fleet-*.json"), key=lambda p: p.name)
+        if not candidates:
+            raise ImportFormatError(f"no fleet-*.json in {path}")
+        path = candidates[-1]
+    try:
+        fleet = json.loads(path.read_text("utf-8-sig"))
+    except json.JSONDecodeError as exc:
+        raise ImportFormatError(f"{path}: invalid JSON ({exc})") from exc
+    if not _is_hardenscope_fleet(fleet):
+        raise ImportFormatError(f"{path} is not a HardenScope fleet report")
+    return fleet
+
+
+def import_hardenscope(
+    conn,
+    fleet: dict,
+    severities: Iterable[str] = HARDENSCOPE_SEVERITIES,
+    lang: str = "en",
+) -> ImportResult:
+    """One ticket per computer and failed check of the chosen severities.
+
+    Every computer in the report was audited completely, so a ticket of one of
+    them whose check no longer fails is resolved. Computers that could not be
+    reached are not in ``computers`` and keep their tickets.
+    """
+    result = ImportResult("hardenscope")
+    severities = set(severities)
+    computers: dict[str, dict] = {}
+    for computer in fleet.get("computers", []):
+        device = _device_name(computer.get("name"))
+        if device is None:
+            result.skipped += 1
+            continue
+        computers[device] = computer
+
+    findings = []
+    for rule in fleet.get("failing", []):
+        rule_id, severity = rule.get("id"), rule.get("severity")
+        if not rule_id or severity not in severities:
+            continue
+        impact, urgency = HARDENSCOPE_PRIORITY.get(severity, ("low", "medium"))
+        title = _localized(rule.get("title"), lang) or rule_id
+        command = rule.get("command")
+        for name in _as_list(rule.get("failedOn")):
+            device = _device_name(name)
+            if device not in computers:
+                continue
+            computer = computers[device]
+            findings.append(Finding(
+                key=f"hardenscope:{device}:{rule_id}",
+                title=_title(_text(lang, "hardenscope_title", device=device, rule=title)),
+                description=_text(
+                    lang, "hardenscope_body", device=device, rule=title, id=rule_id,
+                    severity=HARDENSCOPE_SEVERITY_NAMES.get(lang, HARDENSCOPE_SEVERITY_NAMES["en"])
+                    .get(severity, severity),
+                    risk=_localized(rule.get("risk"), lang),
+                    fix=_localized(rule.get("fix"), lang),
+                    command=_text(lang, "hardenscope_command", command=command) if command else "",
+                    score=computer.get("score", _text(lang, "none")),
+                    grade=computer.get("grade") or _text(lang, "none"),
+                ),
+                # Part of the description and stable while the check keeps
+                # failing, so a repeated audit adds no notes
+                detail=f"{title} ({rule_id}",
+                category=HARDENSCOPE_CATEGORY.get(rule.get("category"), "software"),
+                impact=impact,
+                urgency=urgency,
+                device=device,
+            ))
+    prefixes = [f"hardenscope:{device}:" for device in computers]
+    return sync(conn, "hardenscope", "HardenScope", findings, scope_prefixes=prefixes, lang=lang,
+                result=result)
+

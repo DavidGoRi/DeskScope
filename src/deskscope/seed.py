@@ -578,12 +578,12 @@ def _seed_articles(conn, ids, scenario_ids, lang, now) -> None:
 
 
 def examples_dir() -> Path:
-    """Fictitious PCScope, NetScope and ADFlow exports shipped with DeskScope."""
+    """Fictitious PCScope, NetScope, ADFlow and HardenScope exports shipped with DeskScope."""
     return Path(str(resources.files("deskscope").joinpath("examples")))
 
 
 def seed_integrations(conn: sqlite3.Connection, lang: str = "en") -> list:
-    """Run the three importers on the bundled examples, as a real desk would each night."""
+    """Run the four importers on the bundled examples, as a real desk would each night."""
     from . import integrations
 
     folder = examples_dir()
@@ -595,5 +595,8 @@ def seed_integrations(conn: sqlite3.Connection, lang: str = "en") -> list:
         ),
         integrations.import_adflow(
             conn, integrations.load_adflow_run(folder / "adflow-run"), lang=lang
+        ),
+        integrations.import_hardenscope(
+            conn, integrations.load_hardenscope_fleet(folder / "hardenscope"), lang=lang
         ),
     ]

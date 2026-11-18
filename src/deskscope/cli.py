@@ -238,6 +238,11 @@ def _cmd_import(args: argparse.Namespace) -> int:
                 severities=_split(args.severities),
                 include_new_devices=not args.no_new_devices, lang=args.lang,
             )
+        elif args.tool == "hardenscope":
+            result = integrations.import_hardenscope(
+                conn, integrations.load_hardenscope_fleet(args.path),
+                severities=_split(args.severities), lang=args.lang,
+            )
         else:
             result = integrations.import_adflow(
                 conn, integrations.load_adflow_run(args.path), lang=args.lang,
@@ -360,7 +365,9 @@ def build_parser() -> argparse.ArgumentParser:
                    help="older closed tickets to generate for the metrics (default 60)")
     p.set_defaults(func=_cmd_demo)
 
-    p = sub.add_parser("import", help="open or resolve tickets from PCScope, NetScope or ADFlow")
+    p = sub.add_parser(
+        "import", help="open or resolve tickets from PCScope, NetScope, ADFlow or HardenScope"
+    )
     tools = p.add_subparsers(dest="tool", required=True)
     t = tools.add_parser("pcscope", help="folder written by PCScope.ps1 -ExportCsv")
     t.add_argument("path", type=Path)
@@ -375,6 +382,10 @@ def build_parser() -> argparse.ArgumentParser:
     t.add_argument("path", type=Path)
     t.add_argument("--include-dry-runs", action="store_true",
                    help="also import planned changes from dry runs")
+    t = tools.add_parser("hardenscope", help="a HardenScope fleet-*.json or its output folder")
+    t.add_argument("path", type=Path)
+    t.add_argument("--severities", default="critical",
+                   help="severities of the failed checks that open tickets, e.g. critical,high")
     for t in tools.choices.values():
         t.add_argument("--lang", choices=("en", "es"), default="en",
                        help="language of the tickets")
