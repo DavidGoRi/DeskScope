@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.0.0] - 2026-11-18
+
+Phase 5: email, Telegram, Docker and the live demo. First stable release.
+
+### Added
+- Tickets by email (`deskscope fetch-mail`, IMAP): known senders open tickets, replies with `[DeskScope #n]` in the subject become comments without the quoted text; unknown senders, auto-replies and bulk mail are ignored and every Message-ID is remembered.
+- Notifications by email and Telegram, built on an outbox: the notifier reads the audit trail and comments since its last run, queues messages with a unique key and sends them with retries (`deskscope notify`, `--dry-run`). New tickets, assignments, answers, waiting-for-you, resolution with the survey link, requester replies and SLA at risk / breached (once per ticket, clock and state).
+- `deskscope worker --every 60` and `serve --worker-every 60` to run mail and notifications continuously.
+- `notifications.example.json`; secrets only in `DESKSCOPE_SMTP_PASSWORD`, `DESKSCOPE_TELEGRAM_TOKEN` and `DESKSCOPE_IMAP_PASSWORD`.
+- Dockerfile (non-root user, health check, `/data` volume) and `docker-compose.yml`; CI builds and runs the image.
+- Read-only live demo on GitHub Pages rendered by the real application (`tools/build_demo.py`) for three people in two languages, rebuilt weekly; knowledge base suggestions work in the static pages.
+- `tools/Update-Screenshots.ps1`: screenshots, `docs/demo.gif` and `docs/social-preview.png`.
+- Release workflow: wheel, sdist, SHA-256 checksums and notes from this changelog.
+
+### Changed
+- Migration 5 rebuilds the tickets table (new "email" source) following SQLite's procedure: foreign keys off during migrations and `foreign_key_check` before turning them back on.
+
 ## [0.4.0] - 2026-11-17
 
 Phase 4: knowledge base, satisfaction and metrics.

@@ -1,0 +1,57 @@
+<!doctype html>
+<!-- Source of docs/social-preview.png (1280x640), rendered by tools/Update-Screenshots.ps1. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>DeskScope social preview</title>
+<style>
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    width: 1280px; height: 640px; overflow: hidden; position: relative;
+    background: radial-gradient(circle at 85% 0%, #1b2a4d 0%, #11151c 45%), #11151c;
+    color: #e6e9ef; font-family: "Segoe UI", system-ui, sans-serif;
+  }
+  .left { position: absolute; left: 72px; top: 78px; width: 560px; }
+  .brand { display: flex; align-items: center; gap: 22px; }
+  .brand img { width: 66px; height: 66px; }
+  .brand h1 { font-size: 74px; font-weight: 700; letter-spacing: -1px; }
+  .tagline { margin-top: 26px; font-size: 29px; line-height: 1.33; color: #c4cbd6; }
+  .tagline b { color: #ffffff; font-weight: 650; }
+  .chips { margin-top: 28px; display: flex; flex-wrap: wrap; gap: 10px; }
+  .chip { font-size: 19px; padding: 6px 15px; border-radius: 999px; border: 1px solid #2b3340; background: #1a2029; }
+  .chip.accent { border-color: #6b93ff; color: #8aa8ff; background: #1f2a44; }
+  .footer { position: absolute; left: 72px; bottom: 48px; font-size: 21px; color: #98a2b3; }
+  .footer b { color: #e6e9ef; }
+  .window {
+    position: absolute; left: 670px; top: 92px; width: 720px; height: 470px; overflow: hidden;
+    border: 1px solid #2b3340; border-radius: 12px; background: #f5f6f8;
+    box-shadow: 0 30px 60px rgba(0, 0, 0, .45);
+  }
+  .bar { height: 30px; background: #1f2730; display: flex; align-items: center; gap: 8px; padding-left: 14px; }
+  .bar i { width: 11px; height: 11px; border-radius: 50%; background: #3a4552; display: block; }
+  .window img { display: block; width: 1000px; }
+</style>
+</head>
+<body>
+  <div class="left">
+    <div class="brand">
+      <img src="../src/deskscope/static/favicon.svg" alt="">
+      <h1>DeskScope</h1>
+    </div>
+    <p class="tagline">A <b>lightweight IT help desk</b>: tickets with <b>ITIL SLAs</b>, a knowledge base and metrics, fed by your <b>inventory and network scans</b>.</p>
+    <div class="chips">
+      <span class="chip accent">Python · FastAPI · SQLite</span>
+      <span class="chip">SLA in business hours</span>
+      <span class="chip">PCScope · NetScope · ADFlow</span>
+      <span class="chip">REST API</span>
+      <span class="chip">Email · Telegram</span>
+      <span class="chip">Docker</span>
+    </div>
+  </div>
+  <div class="footer"><b>v1.0.0</b> · MIT · Live demo · github.com/DavidGoRi/DeskScope</div>
+  <div class="window">
+    <div class="bar"><i></i><i></i><i></i></div>
+    <img src="../docs/ticket.png" alt="">
+  </div>
+</body>
+</html>

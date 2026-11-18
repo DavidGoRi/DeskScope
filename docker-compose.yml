@@ -1,0 +1,23 @@
+# docker compose up -d   ->   http://localhost:8000
+# First administrator:
+#   docker compose exec -e DESKSCOPE_PASSWORD='...' deskscope \
+#     deskscope create-user laura --name "Laura Sánchez" --email laura@example.com --role admin
+services:
+  deskscope:
+    build: .
+    image: deskscope:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8000:8000"   # only reachable from this machine; publish it through your proxy
+    volumes:
+      - deskscope-data:/data
+    environment:
+      # Secrets for notifications and the mailbox (leave empty if unused).
+      DESKSCOPE_SMTP_PASSWORD: ${DESKSCOPE_SMTP_PASSWORD:-}
+      DESKSCOPE_TELEGRAM_TOKEN: ${DESKSCOPE_TELEGRAM_TOKEN:-}
+      DESKSCOPE_IMAP_PASSWORD: ${DESKSCOPE_IMAP_PASSWORD:-}
+    # Behind HTTPS, add --secure-cookies:
+    # command: ["deskscope", "serve", "--host", "0.0.0.0", "--secure-cookies", "--worker-every", "60"]
+
+volumes:
+  deskscope-data:

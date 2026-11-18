@@ -13,7 +13,7 @@ license-files = ["LICENSE"]
 authors = [{ name = "DavidGoRi" }]
 keywords = ["helpdesk", "ticketing", "itil", "service-desk", "it-support", "sysadmin"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 5 - Production/Stable",
     "Environment :: Web Environment",
     "Framework :: FastAPI",
     "Intended Audience :: System Administrators",
@@ -66,6 +66,7 @@ extend-immutable-calls = ["fastapi.Depends", "fastapi.Form", "fastapi.Query"]
 "src/deskscope/i18n.py" = ["E501"]
 "src/deskscope/seed.py" = ["E501"]
 "src/deskscope/integrations.py" = ["E501"]  # ticket templates
+"tools/*" = ["E501"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -1,11 +1,20 @@
 # DeskScope
 
 [![CI](https://github.com/DavidGoRi/DeskScope/actions/workflows/ci.yml/badge.svg)](https://github.com/DavidGoRi/DeskScope/actions/workflows/ci.yml)
+[![Live demo](https://img.shields.io/badge/demo-live-2456d6)](https://davidgori.github.io/DeskScope/)
+[![Latest release](https://img.shields.io/github/v/release/DavidGoRi/DeskScope)](https://github.com/DavidGoRi/DeskScope/releases/latest)
 ![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)
-![FastAPI](https://img.shields.io/badge/FastAPI-SQLite-009688?logo=fastapi&logoColor=white)
+![FastAPI + SQLite](https://img.shields.io/badge/FastAPI-SQLite-009688?logo=fastapi&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)
 ![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)
 
-**A lightweight IT help desk for small offices: tickets, roles, an audit trail and, soon, SLAs, a knowledge base and integrations with the rest of the toolkit.**
+**A lightweight IT help desk for small offices: tickets with ITIL SLAs in business hours, a knowledge base, metrics, email and Telegram, and tickets opened automatically by your inventory and network scans.**
+
+### ▶ [Open the live demo](https://davidgori.github.io/DeskScope/)
+
+A fictitious company with 60 days of history. Sign in as the administrator, a technician or an employee and see how the same desk changes. *Leer en [español](README.es.md).*
+
+![DeskScope tour: ticket list with SLA clocks, a ticket with its PCScope device sheet, metrics, knowledge base](docs/demo.gif)
 
 DeskScope is the fourth piece of a small sysadmin toolkit:
 
@@ -16,22 +25,22 @@ DeskScope is the fourth piece of a small sysadmin toolkit:
 | [ADFlow](https://github.com/DavidGoRi/ADFlow) | Automated Active Directory onboarding and offboarding |
 | **DeskScope** | The help desk where all of that becomes tickets |
 
-The goal is the loop a real service desk lives in: *the inventory spots a problem → a ticket is opened → a technician fixes it → the fix is documented*.
+The goal is the loop a real service desk lives in: *the inventory spots a problem → a ticket is opened → a technician fixes it → the fix is documented → the numbers show how the desk is doing*.
 
-*Leer en [español](README.es.md).*
+## Features
 
-## What works today (v0.4, phases 1 to 4)
+### Tickets
 
-- **Tickets** with category, priority, device, status and a conversation.
+- Category, impact, urgency, priority, device, status and a conversation, with **internal notes** the employee never sees.
 - **Three roles**: employees open and follow *their own* tickets; technicians see and work every ticket; administrators also manage accounts.
-- **Workflow** `New → In progress → Waiting for user → Resolved → Closed`, with rules per role: an employee can confirm or reject a fix, a technician cannot reopen a closed ticket, and a reply from the employee puts a waiting ticket back in the queue.
-- **Internal notes** that the employee never sees.
-- **Audit trail**: every change of status, priority or assignee is recorded with who and when.
-- **Search and filters** by number, text, device, status, "assigned to me", "unassigned" and priority.
+- **Workflow** `New → In progress → Waiting for user → Resolved → Closed`, with rules per role: an employee can confirm or reject a fix, a closed ticket stays closed, and a reply from the employee puts a waiting ticket back in the queue.
+- **Audit trail** of every change (status, assignee, impact, urgency, priority, rating) with who and when.
+- **Search and filters** by number, text, device, status, "assigned to me", "unassigned", SLA risk and due date.
+- **English and Spanish** interface (browser language or a switch), light and dark mode, usable on a phone.
 
 ### SLAs the ITIL way
 
-- **Priority is not a free choice.** The employee answers two plain questions, *who is affected?* (impact) and *can you keep working?* (urgency), and the priority comes from the ITIL matrix, previewed live while typing. Technicians re-triage impact and urgency, and every change is logged.
+- **Priority is not a free choice.** The employee answers two plain questions, *who is affected?* (impact) and *can you keep working?* (urgency), and the priority comes from the ITIL matrix, previewed live while typing. Technicians re-triage.
 
   | Impact ↓ / Urgency → | High | Medium | Low |
   |---|---|---|---|
@@ -41,10 +50,8 @@ The goal is the loop a real service desk lives in: *the inventory spots a proble
 
 - **Two clocks per ticket**: *first response* (the first public answer from the desk, or the fix) and *resolution*.
 - **Business hours only**: working days, opening hours, time zone and holidays from `sla.json`; a ticket opened on Friday at 17:30 is not late on Saturday.
-- **Paused while waiting for the user**, as ITIL expects: time in *Waiting for user* does not count against the desk.
-- **States**: on time, at risk (75 % of the target used, configurable), breached, paused, met. The list shows the clock that matters, counts *at risk* and *breached* tickets, filters them and sorts by due date; each ticket shows both clocks with progress bars.
-
-Default targets (business time, all editable):
+- **Paused while waiting for the user**, as ITIL expects.
+- **States**: on time, at risk (75 % of the target used, configurable), breached, paused, met — in the list, as counters, as a filter and as progress bars on each ticket.
 
 | Priority | First response | Resolution |
 |---|---|---|
@@ -52,7 +59,8 @@ Default targets (business time, all editable):
 | High | 1 h | 8 h |
 | Medium | 4 h | 3 days |
 | Low | 8 h | 5 days |
-- **English and Spanish** interface (browser language or a switch), light and dark mode, usable on a phone.
+
+(Default targets in business time, all editable.)
 
 ### Integrations: the toolkit opens its own tickets
 
@@ -64,12 +72,12 @@ Default targets (business time, all editable):
 
 Imports are **idempotent and self-healing**:
 
-- each finding has a stable key (`pcscope:OPS-PC04:diskSpace`), and the database refuses two *active* tickets with the same key (partial unique index), so re-running an import never duplicates anything;
+- each finding has a stable key (`pcscope:OPS-PC04:diskSpace`) and the database refuses two *active* tickets with the same key (partial unique index), so re-running an import never duplicates anything;
 - if the details change (*93 % full → 97 % full*) an internal note is added instead of a new ticket;
-- when a later import no longer reports a problem on a device it inventoried, the ticket is **resolved automatically** with a note; a problem that comes back opens a new ticket, so the history stays honest;
+- when a later import no longer reports a problem on a device it inventoried, the ticket is **resolved automatically**; a problem that comes back opens a new ticket, so the history stays honest;
 - events that need a person (a new device on the network, an onboarding) are never closed automatically.
 
-Tickets from tools are opened by a built-in `integrations` system account that can never sign in, and their priority comes from the same impact × urgency matrix (a disabled antivirus is more urgent than a full disk).
+Tickets from tools are opened by a built-in `integrations` system account that can never sign in.
 
 ```bash
 deskscope import pcscope  \\fileserver\pcscope\export --lang es
@@ -77,16 +85,31 @@ deskscope import netscope C:\NetScope\output
 deskscope import adflow   C:\ADFlow\output\runs\20261117-080000-onboarding
 ```
 
+### Email and Telegram
+
+- **Tickets by email**: a message from a known user opens a ticket; a reply to any notification (its subject carries `[DeskScope #12]`) becomes a comment on that ticket, with the quoted text removed. Unknown senders, auto-replies and bulk mail are ignored (no mail loops), and every `Message-ID` is remembered so nothing is imported twice.
+- **Notifications**: new tickets to the desk's Telegram chat; *assigned to you* to the technician; answers, *waiting for you* and *resolved (rate us)* to the employee; employee replies to the technician; *SLA at risk / breached* to Telegram and the technician — once per ticket, clock and state.
+- Built on an **outbox**: the notifier reads the audit trail since its last run, queues messages with a unique key and sends them with retries. Web requests never wait for SMTP, an outage loses nothing and nobody gets the same message twice.
+- Settings in `notifications.json` ([example](notifications.example.json)); passwords only in environment variables (`DESKSCOPE_SMTP_PASSWORD`, `DESKSCOPE_TELEGRAM_TOKEN`, `DESKSCOPE_IMAP_PASSWORD`).
+
+### Knowledge base and self-service
+
+- **Articles written from solved tickets**: one click pre-fills the problem and the desk's public answers (never the internal notes) and links them.
+- **Self-service before the ticket**: while an employee types the summary of a new ticket, matching articles appear under it.
+- **Full-text search** with SQLite FTS5: BM25 ranking, prefixes, accent-insensitive (*impresion* finds *impresión*); free text is turned into quoted terms, so nobody can inject FTS operators.
+- Articles for everyone or for the service desk only (internal procedures), drafts, read counters, and **related articles** on every ticket for technicians.
+
+### Metrics, satisfaction and export
+
+- **Satisfaction survey** (1–5 and a comment) once a ticket is resolved.
+- **Metrics** for the last 7, 30 or 90 days: volumes and backlog at risk; mean and median **time to resolve** and **first response** in business time, measured by the SLA engine; **% on time**; **satisfaction**; a daily chart (server-rendered SVG, no JavaScript library); breakdowns by priority, category, technician, source and device.
+- **CSV export** with business durations and SLA states, UTF-8 with BOM for Excel and protected against **CSV/formula injection** (ticket titles are typed by users).
+
 ### REST API
 
-Every operation is also available at `/api/v1` (OpenAPI spec at `/api/openapi.json`, interactive docs at `/api/docs`), authenticated with **bearer tokens** that each person creates under *API tokens*:
+Everything is also available at `/api/v1` (OpenAPI at `/api/openapi.json`, Swagger UI at `/api/docs`) with **bearer tokens** each person creates under *API tokens*: 256-bit secrets shown once and stored as SHA-256, revocable, with their last use. The API only accepts the `Authorization` header — never the session cookie — so it is not exposed to CSRF, and it goes through the same domain functions as the pages, with the token owner's permissions.
 
-- tokens are 256-bit random secrets shown **once**; only their SHA-256 is stored, with a short prefix to recognise them, the last time they were used and a revoke button;
-- the API only accepts the `Authorization` header, never the session cookie, so it is not exposed to CSRF;
-- it goes through the same domain functions as the web pages, with the token owner's permissions (an employee's token still only sees that employee's tickets);
-- errors are JSON with a stable code (`{"error": "error.ticket_not_found", "message": "..."}`).
-
-So PCScope's scheduled task can push its results straight to DeskScope:
+PCScope's scheduled task can push its results straight to DeskScope (tested with Windows PowerShell 5.1):
 
 ```powershell
 $headers = @{ Authorization = "Bearer $env:DESKSCOPE_TOKEN" }
@@ -101,36 +124,15 @@ Invoke-RestMethod -Method Post -Uri 'https://deskscope.example.com/api/v1/import
 
 (`deskscope token create integrations --name "PCScope task"` prints a token for the system account.)
 
-### Knowledge base and self-service
-
-- **Articles written from solved tickets**: one click pre-fills the article with the problem and the desk's public answers (never the internal notes) and links it back to the ticket.
-- **Self-service before the ticket**: while an employee types the summary of a new ticket, matching articles appear under it, so many problems never become tickets.
-- **Full-text search** with SQLite FTS5: ranked with BM25, prefix matching and accent-insensitive (*impresion* finds *impresión*). Free text is turned into quoted terms, so nobody can inject FTS operators.
-- **Audiences and drafts**: articles for everyone (self-service) or for the service desk only (internal procedures); drafts are only visible to technicians. Each published article counts its reads.
-- Technicians see **related articles** on every ticket.
-
-### Metrics, satisfaction and export
-
-- **Satisfaction survey**: once a ticket is resolved its requester rates it from 1 to 5, with an optional comment; the rating shows on the ticket and in the history.
-- **Metrics page** for the last 7, 30 or 90 days:
-  - tickets opened, resolved and still open (with how many are at risk or breached);
-  - mean and median **time to resolve** and mean **first response**, in business time, measured by the SLA engine (pauses excluded);
-  - **% resolved on time** and **% answered on time**;
-  - **satisfaction** average;
-  - opened vs resolved per day (server-rendered SVG, no JavaScript chart library);
-  - breakdowns by priority, category, technician, source and the devices with the most tickets.
-- **CSV export** of the period's tickets with business durations and SLA states. It is UTF-8 with BOM so Excel shows accents, and every cell is protected against **CSV/formula injection** (`=`, `+`, `-`, `@`… are neutralised): ticket titles are typed by users.
-- The same numbers at `GET /api/v1/reports/summary?days=30`.
-
 ### Security, because a help desk holds sensitive data
 
-- Passwords hashed with **PBKDF2-SHA256, 600,000 rounds** (standard library, no external crypto).
+- Passwords hashed with **PBKDF2-SHA256, 600,000 rounds** (standard library).
 - **CSRF token** on every form, `SameSite=Lax` and `HttpOnly` session cookies, a new session on every login.
 - **Brute-force throttling**: 5 failed logins in 15 minutes lock that user from that address.
 - Strict **Content-Security-Policy** (no inline scripts or styles), `X-Frame-Options: DENY`, `nosniff`, `no-store`.
 - Tickets you may not see answer **404, not 403**, so ticket numbers cannot be probed.
-- Permissions are enforced in the domain layer, not only in the pages, so the future API cannot skip them.
-- Only local redirects after login (no open redirect). Output is escaped by Jinja2.
+- Permissions are enforced in the domain layer, so the web pages, the API, the importers and the mail gateway all share them.
+- No open redirects, escaped output, hashed API tokens, formula-safe CSV, secrets only in environment variables, and a non-root Docker container.
 
 ## Try it
 
@@ -145,32 +147,42 @@ deskscope demo --lang en        # fictitious company: 60 days of history, articl
 deskscope serve                 # http://127.0.0.1:8000
 ```
 
-Every demo account uses the password `deskscope-demo`: `carlos.ruiz` (technician), `laura.sanchez` (administrator) or `ana.garcia` (employee). Sign in as different roles to see how the same ticket changes.
+Every demo account uses the password `deskscope-demo`: `carlos.ruiz` (technician), `laura.sanchez` (administrator) or `ana.garcia` (employee).
+
+### With Docker
+
+```bash
+docker compose up -d            # http://localhost:8000, data in the deskscope-data volume
+docker compose exec -e DESKSCOPE_PASSWORD='choose-one' deskscope \
+  deskscope create-user laura --name "Laura Sánchez" --email laura@example.com --role admin
+```
+
+The image runs as a non-root user, has a health check and runs the mail/notification worker in the same process (`--worker-every 60`).
 
 ### Real use
 
 ```bash
 deskscope init
-set DESKSCOPE_PASSWORD=...      # or let it ask
 deskscope create-user laura --name "Laura Sánchez" --email laura@example.com --role admin
-deskscope serve --host 0.0.0.0 --secure-cookies   # behind an HTTPS reverse proxy
+deskscope serve --host 0.0.0.0 --secure-cookies --worker-every 60   # behind an HTTPS reverse proxy
 ```
 
 | Setting | Default |
 |---|---|
 | `--db` / `DESKSCOPE_DB` | `data/deskscope.db` |
 | `DESKSCOPE_SECRET_KEY` | generated once in `data/secret.key` |
-| `--sla` / `DESKSCOPE_SLA` | `sla.json` next to the database, else built-in defaults |
+| `--sla` / `DESKSCOPE_SLA` | `sla.json` next to the database, else built-in defaults ([example](sla.example.json) with Madrid hours and Spanish holidays) |
+| `--notify-config` / `DESKSCOPE_NOTIFY` | `notifications.json` next to the database, else everything off ([example](notifications.example.json)) |
 
-Copy [`sla.example.json`](sla.example.json) (Madrid business hours and Spanish national holidays for 2026–2027) to `data/sla.json` and adapt it. `deskscope sla` validates the file and prints the policy in use; `serve` refuses to start with an invalid one.
+`deskscope sla` validates the SLA file, `deskscope notify --dry-run` shows what would be sent, and `deskscope worker` runs mail and notifications on their own (e.g. as a service) instead of inside `serve`.
 
-## Roadmap
-
-1. ✅ **Core**: tickets, roles, workflow, comments, audit trail, bilingual UI.
-2. ✅ **SLAs (ITIL)**: priority from an impact × urgency matrix, response and resolution targets in business hours with holidays, pause while waiting for the user, "at risk" warnings.
-3. ✅ **Integrations**: PCScope device sheet inside the ticket, self-healing tickets from PCScope issues and NetScope findings, onboarding and offboarding tickets from ADFlow, REST API with tokens.
-4. ✅ **Knowledge base and metrics**: articles from solved tickets, suggestions while typing, full-text search, satisfaction survey, MTTR and SLA compliance in business time, breakdowns, safe CSV export.
-5. **Release**: tickets by email (IMAP), notifications by email and Telegram, Docker image, live demo and v1.0.0.
+| Command | |
+|---|---|
+| `init`, `create-user`, `token create/list/revoke` | database, accounts, API tokens |
+| `demo [--lang es] [--history 60]` | fictitious company |
+| `import pcscope / netscope / adflow` | tickets from the toolkit |
+| `notify`, `fetch-mail`, `worker --every 60` | email and Telegram |
+| `sla`, `serve` | policy check, web server |
 
 ## Development
 
@@ -178,31 +190,35 @@ Copy [`sla.example.json`](sla.example.json) (Madrid business hours and Spanish n
 pip install -e ".[dev]"
 ruff check .
 python -m pytest
+python tools/build_demo.py _site                  # the static live demo
+powershell -File tools/Update-Screenshots.ps1     # docs/*.png and docs/demo.gif
 ```
 
-224 tests (domain rules, permissions, the business-hours calendar and SLA clocks, schema migrations, the three importers, tokens, the REST API, full-text search, metrics computed on a fixed calendar, CSV injection, web flows, security headers, translations, demo data and CLI) run on Windows and Linux with Python 3.10 and 3.13. CI also starts the real server and calls the API with a real token.
+252 tests (domain rules and permissions, the business-hours calendar and SLA clocks, schema migrations including a table rebuild, the three importers, tokens and the REST API, full-text search, metrics on a fixed calendar, CSV injection, notifications and the outbox, mail parsing, web flows, security headers, translations, demo data and CLI) run on Windows and Linux with Python 3.10 and 3.13. CI also starts the real server and calls the API with a real token, and builds and runs the Docker image.
 
-The fictitious exports used by the demo and the tests are in [`src/deskscope/examples`](src/deskscope/examples): a PCScope CSV export (culture-specific `;` delimiter and BOM, as PowerShell writes it), a NetScope scan and an ADFlow run.
-
-The schema evolves through numbered SQL migrations (`src/deskscope/migrations/`), each applied in one transaction; upgrading a v0.1 database keeps every priority and backfills the first-response times.
+- The schema evolves through numbered SQL migrations (`src/deskscope/migrations/`), each in one transaction, with the foreign-key procedure SQLite requires for table rebuilds; a v0.1 database upgrades to v1.0 without losing anything.
+- The live demo is rendered by the real application (`tools/build_demo.py` signs in as each person and crawls the pages) and rebuilt every week by GitHub Actions, so its dates and SLA clocks stay current.
+- The fictitious exports used by the demo and the tests are in [`src/deskscope/examples`](src/deskscope/examples).
 
 ```
 src/deskscope/
-  models.py     vocabulary, workflow rules, errors
-  tickets.py    ticket rules (every function takes the acting user)
-  sla.py        business calendar, SLA clocks, sla.json parsing
+  models.py        vocabulary, workflow rules, errors
+  tickets.py       ticket rules (every function takes the acting user)
+  sla.py           business calendar, SLA clocks, sla.json
   integrations.py  PCScope / NetScope / ADFlow importers and reconciliation
-  tokens.py     API tokens (hashed)
-  api.py        REST API mounted at /api
-  knowledge.py  knowledge base and FTS5 search
-  reports.py    metrics and CSV export
-  migrations/   numbered SQL schema migrations
-  users.py      accounts and authentication
-  security.py   password hashing, tokens
-  web.py        FastAPI routes, sessions, CSRF, security headers
-  i18n.py       English and Spanish text
-  seed.py       fictitious demo company
-  cli.py        init, create-user, demo, serve
+  knowledge.py     knowledge base and FTS5 search
+  reports.py       metrics and CSV export
+  notify.py        outbox, email and Telegram notifications
+  mailin.py        tickets and replies by email (IMAP)
+  tokens.py        API tokens (hashed)
+  api.py           REST API mounted at /api
+  web.py           FastAPI pages, sessions, CSRF, security headers
+  users.py         accounts and authentication
+  security.py      password hashing, tokens
+  i18n.py          English and Spanish text
+  seed.py          fictitious demo company
+  cli.py           command line
+  migrations/      numbered SQL schema migrations
 ```
 
 ## License

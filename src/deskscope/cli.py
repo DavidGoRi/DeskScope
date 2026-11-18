@@ -1,4 +1,5 @@
-"""Command line: ``deskscope init | create-user | demo | sla | import | token | serve``."""
+"""Command line: ``deskscope init | create-user | demo | sla | import | token | notify |
+fetch-mail | worker | serve``."""
 
 from __future__ import annotations
 
@@ -7,9 +8,10 @@ import contextlib
 import getpass
 import os
 import sys
+import threading
 from pathlib import Path
 
-from . import __version__, integrations, security, tokens, users
+from . import __version__, integrations, mailin, notify, security, tokens, users
 from .db import connect, init_db
 from .models import ROLES, DeskError
 from .seed import DEMO_PASSWORD, DEMO_USERS, seed_demo, seed_integrations
@@ -52,6 +54,92 @@ def _cmd_sla(args: argparse.Namespace) -> int:
     print(f"  {'priority':<10}{'response':>10}{'resolution':>12}  (business minutes)")
     for priority, values in policy.targets.items():
         print(f"  {priority:<10}{values['response']:>10}{values['resolution']:>12}")
+    return 0
+
+
+def notify_path(args: argparse.Namespace) -> Path:
+    """--notify-config, else $DESKSCOPE_NOTIFY, else notifications.json next to the database."""
+    if args.notify_config:
+        return args.notify_config
+    env = os.environ.get("DESKSCOPE_NOTIFY")
+    return Path(env) if env else args.db.parent / "notifications.json"
+
+
+def load_notify(args: argparse.Namespace) -> dict:
+    path = notify_path(args)
+    if args.notify_config and not path.exists():
+        raise SystemExit(f"Notification settings not found: {path}")
+    try:
+        return notify.load_config(path)
+    except notify.NotifyConfigError as exc:
+        raise SystemExit(f"Invalid notification settings in {path}: {exc}") from exc
+
+
+def worker_pass(db_path: Path, config: dict, policy: SlaPolicy) -> dict[str, int]:
+    """Read the mailbox (if configured), then queue and send notifications."""
+    result: dict[str, int] = {}
+    conn = connect(db_path)
+    try:
+        if config["imap"]["enabled"]:
+            result.update({f"mail_{k}": v for k, v in mailin.fetch(conn, config).items()})
+        result.update(notify.run(conn, config, policy))
+    finally:
+        conn.close()
+    return result
+
+
+def _cmd_notify(args: argparse.Namespace) -> int:
+    init_db(args.db)
+    config, policy = load_notify(args), load_sla(args)
+    conn = connect(args.db)
+    try:
+        if args.dry_run:
+            for m in notify.collect(conn, config, policy):
+                print(f"[{m.channel}] {m.recipient}: {m.subject or m.body.splitlines()[0]}")
+            conn.rollback()
+            return 0
+        result = notify.run(conn, config, policy)
+    finally:
+        conn.close()
+    print(", ".join(f"{k}: {v}" for k, v in result.items()))
+    return 0
+
+
+def _cmd_fetch_mail(args: argparse.Namespace) -> int:
+    init_db(args.db)
+    config = load_notify(args)
+    if not config["imap"]["enabled"]:
+        print("IMAP is not enabled in the notification settings.", file=sys.stderr)
+        return 1
+    conn = connect(args.db)
+    try:
+        counts = mailin.fetch(conn, config)
+    finally:
+        conn.close()
+    print(", ".join(f"{k}: {v}" for k, v in sorted(counts.items())) or "no new messages")
+    return 0
+
+
+def _run_worker(db_path: Path, config: dict, policy: SlaPolicy, every: int,
+                stop: threading.Event) -> None:
+    while not stop.is_set():
+        try:
+            result = worker_pass(db_path, config, policy)
+            if any(result.values()):
+                print("worker: " + ", ".join(f"{k} {v}" for k, v in result.items() if v),
+                      flush=True)
+        except Exception as exc:  # noqa: BLE001 - keep the worker alive, report and retry
+            print(f"worker error: {type(exc).__name__}: {exc}", file=sys.stderr, flush=True)
+        stop.wait(every)
+
+
+def _cmd_worker(args: argparse.Namespace) -> int:
+    init_db(args.db)
+    stop = threading.Event()
+    try:
+        _run_worker(args.db, load_notify(args), load_sla(args), args.every, stop)
+    except KeyboardInterrupt:
+        stop.set()
     return 0
 
 
@@ -207,10 +295,19 @@ def _cmd_serve(args: argparse.Namespace) -> int:
 
     from .web import create_app
 
+    policy = load_sla(args)
     app = create_app(
         args.db, load_secret_key(args.db),
-        secure_cookies=args.secure_cookies, sla_policy=load_sla(args),
+        secure_cookies=args.secure_cookies, sla_policy=policy,
     )
+    if args.worker_every:
+        # Mail and notifications in a background thread of the same process.
+        config = load_notify(args)
+        threading.Thread(
+            target=_run_worker, args=(args.db, config, policy, args.worker_every,
+                                      threading.Event()),
+            daemon=True, name="deskscope-worker",
+        ).start()
     if args.host not in ("127.0.0.1", "localhost", "::1") and not args.secure_cookies:
         print(
             "Warning: listening on the network without --secure-cookies. "
@@ -231,6 +328,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--sla", type=Path, default=None,
         help="SLA policy JSON (default: $DESKSCOPE_SLA or sla.json next to the database)",
+    )
+    parser.add_argument(
+        "--notify-config", type=Path, default=None,
+        help="notification and mailbox settings (default: $DESKSCOPE_NOTIFY or"
+        " notifications.json next to the database)",
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
@@ -289,6 +391,17 @@ def build_parser() -> argparse.ArgumentParser:
     t.add_argument("token_id", type=int)
     p.set_defaults(func=_cmd_token)
 
+    p = sub.add_parser("notify", help="send pending notifications (email, Telegram)")
+    p.add_argument("--dry-run", action="store_true", help="show what would be sent")
+    p.set_defaults(func=_cmd_notify)
+
+    p = sub.add_parser("fetch-mail", help="turn unread emails into tickets and comments")
+    p.set_defaults(func=_cmd_fetch_mail)
+
+    p = sub.add_parser("worker", help="fetch mail and send notifications in a loop")
+    p.add_argument("--every", type=int, default=60, help="seconds between passes")
+    p.set_defaults(func=_cmd_worker)
+
     p = sub.add_parser("serve", help="run the web interface")
     p.add_argument("--host", default="127.0.0.1")
     p.add_argument("--port", type=int, default=8000)
@@ -296,6 +409,8 @@ def build_parser() -> argparse.ArgumentParser:
         "--secure-cookies", action="store_true",
         help="send cookies over HTTPS only (use behind a TLS reverse proxy)",
     )
+    p.add_argument("--worker-every", type=int, default=0, metavar="SECONDS",
+                   help="also run the mail/notification worker in the background")
     p.set_defaults(func=_cmd_serve)
     return parser
 

@@ -1,0 +1,65 @@
+name: Release
+
+# Pushing a tag such as v1.0.0 runs the tests, builds the wheel and the source
+# package, checks the Docker image builds, and publishes the GitHub release with
+# the notes of that version from CHANGELOG.md and SHA-256 checksums.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Check that the tag matches the version
+        run: |
+          version=$(python -c "import sys; sys.path.insert(0, 'src'); import deskscope; print(deskscope.__version__)")
+          test "v$version" = "${GITHUB_REF_NAME}" || { echo "tag ${GITHUB_REF_NAME} does not match version $version"; exit 1; }
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+
+      - name: Test
+        run: |
+          python -m pip install -e ".[dev]" build
+          ruff check .
+          python -m pytest -q
+
+      - name: Build wheel and sdist
+        run: |
+          python -m build --outdir dist
+          python -m pip install dist/*.whl --force-reinstall --no-deps
+          deskscope --version
+          cd dist && sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt
+
+      - name: Check the Docker image builds
+        run: docker build -t deskscope:${VERSION} .
+
+      - name: Release notes from CHANGELOG.md
+        run: |
+          python - <<'EOF' > dist/notes.md
+          import os, re
+          text = open("CHANGELOG.md", encoding="utf-8").read()
+          version = os.environ["VERSION"]
+          match = re.search(rf"^## \[{re.escape(version)}\][^\n]*\n(.*?)(?=^## \[|\Z)", text, re.S | re.M)
+          if not match:
+              raise SystemExit(f"no CHANGELOG entry for {version}")
+          print(match.group(1).strip())
+          print()
+          print("Live demo: https://davidgori.github.io/DeskScope/ · Install: `pip install deskscope-" + version + "-py3-none-any.whl` or `docker compose up -d`.")
+          EOF
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" dist/*.whl dist/*.tar.gz dist/SHA256SUMS.txt \
+            --title "DeskScope ${GITHUB_REF_NAME}" --notes-file dist/notes.md

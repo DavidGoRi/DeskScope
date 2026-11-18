@@ -22,3 +22,5 @@ _site/
 *.swp
 Thumbs.db
 desktop.ini
+_site_local/
+_demo/

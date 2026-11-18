@@ -46,18 +46,28 @@ def migrate(conn: sqlite3.Connection) -> int:
         raise RuntimeError(
             f"database schema v{version} is newer than this DeskScope (v{SCHEMA_VERSION})"
         )
-    for number, sql in _migrations():
-        if number <= version:
-            continue
-        # executescript() commits first, so wrap the script and the version bump
-        # in one explicit transaction: a failed migration leaves nothing half-done.
-        try:
-            conn.executescript(f"BEGIN;\n{sql}\nPRAGMA user_version = {number};\nCOMMIT;")
-        except sqlite3.Error:
-            if conn.in_transaction:
-                conn.rollback()
-            raise
-        version = number
+    pending = [(n, sql) for n, sql in _migrations() if n > version]
+    if not pending:
+        return version
+    # Some migrations rebuild tables; SQLite requires foreign keys off (outside
+    # a transaction) for that, and a foreign_key_check before turning them on.
+    conn.execute("PRAGMA foreign_keys = OFF")
+    try:
+        for number, sql in pending:
+            # executescript() commits first, so wrap the script and the version bump
+            # in one explicit transaction: a failed migration leaves nothing half-done.
+            try:
+                conn.executescript(f"BEGIN;\n{sql}\nPRAGMA user_version = {number};\nCOMMIT;")
+            except sqlite3.Error:
+                if conn.in_transaction:
+                    conn.rollback()
+                raise
+            problems = conn.execute("PRAGMA foreign_key_check").fetchall()
+            if problems:
+                raise RuntimeError(f"migration {number} broke foreign keys: {problems[:5]}")
+            version = number
+    finally:
+        conn.execute("PRAGMA foreign_keys = ON")
     return version
 
 

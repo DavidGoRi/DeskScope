@@ -44,3 +44,26 @@ jobs:
           curl -fsS -H "Authorization: Bearer $token" http://127.0.0.1:8765/api/v1/me | grep -q '"carlos.ruiz"'
           curl -fsS -H "Authorization: Bearer $token" "http://127.0.0.1:8765/api/v1/tickets?status=any" | grep -q '"source":"pcscope"'
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8765/api/v1/me)" = "401"
+
+  docker:
+    name: Docker image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Build
+        run: docker build -t deskscope:ci .
+
+      - name: Run and check it answers as a non-root user
+        run: |
+          docker run -d --name ds -p 8000:8000 deskscope:ci
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:8000/healthz && break
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:8000/login | grep -q "DeskScope"
+          test "$(docker exec ds id -u)" = "10001"
+          docker exec ds deskscope --version
+          status=$(docker inspect --format '{{.State.Health.Status}}' ds)
+          echo "health: $status"
+          docker logs ds

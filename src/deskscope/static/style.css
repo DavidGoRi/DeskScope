@@ -252,7 +252,18 @@ table.compact th, table.compact td { padding: .4rem .5rem; }
 h2.sub { margin-top: 1.2rem; }
 .actions .pill { margin-right: .2rem; }
 
+/* Static live demo (GitHub Pages) */
+.demo-banner { background: var(--accent-soft); color: var(--text); text-align: center; padding: .45rem 1rem; font-size: .88rem; border-bottom: 1px solid var(--border); }
+.demo-banner a { margin-left: .4rem; font-weight: 600; }
+.demo-toast { position: fixed; left: 50%; bottom: 1.5rem; transform: translateX(-50%); max-width: min(92vw, 560px); background: var(--text); color: var(--bg); padding: .7rem 1rem; border-radius: 10px; box-shadow: 0 6px 24px rgba(0,0,0,.25); z-index: 10; font-size: .92rem; }
+.landing { max-width: 900px; }
+.landing-head { display: flex; gap: 1rem; align-items: center; margin: 1rem 0 1.5rem; }
+.landing-head h1 { font-size: 2rem; }
+.landing-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; margin-bottom: 1rem; }
+.landing-grid h2 { margin-bottom: .2rem; }
+
 @media (max-width: 860px) {
+  .landing-grid { grid-template-columns: 1fr; }
   .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .report-grid { grid-template-columns: 1fr; }
   .ticket-layout { grid-template-columns: 1fr; }

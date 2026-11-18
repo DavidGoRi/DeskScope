@@ -1,0 +1,24 @@
+{
+  "base_url": "https://deskscope.example.com",
+  "lang": "es",
+  "email": {
+    "enabled": false,
+    "server": "smtp.example.com",
+    "port": 587,
+    "security": "starttls",
+    "user": "deskscope@example.com",
+    "from": "DeskScope <deskscope@example.com>"
+  },
+  "telegram": {
+    "enabled": false,
+    "chat_id": "-1001234567890"
+  },
+  "imap": {
+    "enabled": false,
+    "server": "imap.example.com",
+    "port": 993,
+    "user": "soporte@example.com",
+    "folder": "INBOX"
+  },
+  "sla_alerts": true
+}
